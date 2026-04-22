@@ -1,4 +1,4 @@
-from model import ColorCube, ColorPlane
+from src.objects.model import ColorCube, ColorPlane
 
 
 class Scene:
