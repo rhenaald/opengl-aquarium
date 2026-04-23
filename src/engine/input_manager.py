@@ -15,7 +15,7 @@ class InputManager:
         
         self._prev_mouse_pos: tuple[int, int] = (0, 0)
     
-    def update(self):
+    def update(self, events):
         self.keys_down.clear()
         self.keys_up.clear()
         self.mouse_delta = (0, 0)
@@ -24,7 +24,7 @@ class InputManager:
         self.orbit_zoom_in = False
         self.orbit_zoom_out = False
         
-        for event in pg.event.get():
+        for event in events:
             if event.type == pg.QUIT:
                 self.quit_requested = True
             
