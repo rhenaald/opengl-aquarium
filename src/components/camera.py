@@ -30,7 +30,7 @@ class Camera:
         self.m_view = self.get_view_matrix()
 
     def rotate(self):
-        dx, dy = self.app.input.get_mouse_delta()
+        dx, dy = pg.mouse.get_rel()
         self.look_lr += dx * MOUSE_SENS
         self.look_ud -= dy * MOUSE_SENS
         self.look_ud = max(-89.0, min(89.0, self.look_ud))
@@ -86,7 +86,7 @@ class Camera:
         if input_mgr.is_pressed(pg.K_DOWN):
             self.look_ud -= rotate_speed
 
-        dx, dy = input_mgr.get_mouse_delta()
+        dx, dy = pg.mouse.get_rel()
         self.look_lr += dx * MOUSE_SENS
         self.look_ud -= dy * MOUSE_SENS
         self.look_ud = max(-89.0, min(89.0, self.look_ud))
