@@ -65,15 +65,3 @@ class InputManager:
     
     def get_mouse_delta(self):
         return self.mouse_delta
-
-
-class Keys:
-    FORWARD = pg.K_w
-    BACK = pg.K_s
-    LEFT = pg.K_a
-    RIGHT = pg.K_d
-    UP = pg.K_SPACE
-    DOWN = pg.K_LSHIFT
-    ESCAPE = pg.K_ESCAPE
-    TAB = pg.K_TAB
-    BACKQUOTE = pg.K_BACKQUOTE
