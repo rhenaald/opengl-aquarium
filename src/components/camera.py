@@ -30,9 +30,9 @@ class Camera:
         self.m_view = self.get_view_matrix()
 
     def rotate(self):
-        rel_x, rel_y = pg.mouse.get_rel()
-        self.look_lr += rel_x * MOUSE_SENS
-        self.look_ud -= rel_y * MOUSE_SENS
+        dx, dy = pg.mouse.get_rel()
+        self.look_lr += dx * MOUSE_SENS
+        self.look_ud -= dy * MOUSE_SENS
         self.look_ud = max(-89.0, min(89.0, self.look_ud))
 
     def update_camera_vectors(self):
@@ -47,46 +47,48 @@ class Camera:
         self.up = glm.normalize(glm.cross(self.right, self.forward))
 
     def move(self):
-        keys = pg.key.get_pressed()
+        input_mgr = self.app.input
         velocity = 0.02 * self.app.delta_time
-        if keys[pg.K_LSHIFT] or keys[pg.K_RSHIFT]:
+        
+        if input_mgr.is_pressed(pg.K_LSHIFT) or input_mgr.is_pressed(pg.K_RSHIFT):
             velocity = 0.05 * self.app.delta_time
-        elif keys[pg.K_LCTRL] or keys[pg.K_RCTRL]:
+        elif input_mgr.is_pressed(pg.K_LCTRL) or input_mgr.is_pressed(pg.K_RCTRL):
             velocity = 0.004 * self.app.delta_time
 
-        if keys[pg.K_w]:
+        if input_mgr.is_pressed(pg.K_w):
             self.position += self.forward * velocity
-        if keys[pg.K_s]:
+        if input_mgr.is_pressed(pg.K_s):
             self.position -= self.forward * velocity
-        if keys[pg.K_a]:
+        if input_mgr.is_pressed(pg.K_a):
             self.position -= self.right * velocity
-        if keys[pg.K_d]:
+        if input_mgr.is_pressed(pg.K_d):
             self.position += self.right * velocity
-        if keys[pg.K_q]:
+        if input_mgr.is_pressed(pg.K_q):
             self.position -= self.up * velocity
-        if keys[pg.K_e]:
+        if input_mgr.is_pressed(pg.K_e):
             self.position += self.up * velocity
 
     def update_orbit(self):
-        keys = pg.key.get_pressed()
+        input_mgr = self.app.input
         rotate_speed = 0.05 * self.app.delta_time
-        if keys[pg.K_LSHIFT] or keys[pg.K_RSHIFT]:
+        
+        if input_mgr.is_pressed(pg.K_LSHIFT) or input_mgr.is_pressed(pg.K_RSHIFT):
             rotate_speed = 0.10 * self.app.delta_time
-        elif keys[pg.K_LCTRL] or keys[pg.K_RCTRL]:
+        elif input_mgr.is_pressed(pg.K_LCTRL) or input_mgr.is_pressed(pg.K_RCTRL):
             rotate_speed = 0.02 * self.app.delta_time
 
-        if keys[pg.K_LEFT]:
+        if input_mgr.is_pressed(pg.K_LEFT):
             self.look_lr += rotate_speed
-        if keys[pg.K_RIGHT]:
+        if input_mgr.is_pressed(pg.K_RIGHT):
             self.look_lr -= rotate_speed
-        if keys[pg.K_UP]:
+        if input_mgr.is_pressed(pg.K_UP):
             self.look_ud += rotate_speed
-        if keys[pg.K_DOWN]:
+        if input_mgr.is_pressed(pg.K_DOWN):
             self.look_ud -= rotate_speed
 
-        rel_x, rel_y = pg.mouse.get_rel()
-        self.look_lr += rel_x * MOUSE_SENS
-        self.look_ud -= rel_y * MOUSE_SENS
+        dx, dy = pg.mouse.get_rel()
+        self.look_lr += dx * MOUSE_SENS
+        self.look_ud -= dy * MOUSE_SENS
         self.look_ud = max(-89.0, min(89.0, self.look_ud))
 
         theta = glm.radians(self.look_lr)

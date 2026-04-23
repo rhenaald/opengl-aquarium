@@ -2,11 +2,12 @@ import sys
 import pygame as pg
 import moderngl as mgl
 
-from camera import Camera
-from point_light import PointLight
-from mesh import Mesh
-from scene import Scene
-from scene_renderer import SceneRenderer
+from src.components.camera import Camera
+from src.components.point_light import PointLight
+from src.components.mesh import Mesh
+from src.objects.scene import Scene
+from src.renderer import SceneRenderer
+from src.engine.input_manager import InputManager
 
 
 class SxvxnEngine:
@@ -32,33 +33,36 @@ class SxvxnEngine:
         self.delta_time = 0.0
         self.background_color = (0.10, 0.12, 0.16)
 
+        self.input = InputManager()
         self.light = PointLight(position=(6.0, 8.0, 6.0), color=(1.0, 1.0, 1.0), intensity=1.2)
         self.camera = Camera(self)
         self.mesh = Mesh(self)
         self.scene = Scene(self)
         self.scene_renderer = SceneRenderer(self)
+        
+        self.running = True
 
     def check_events(self):
-        for event in pg.event.get():
-            if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
-                self.destroy()
-                pg.quit()
-                sys.exit()
-
-            if event.type == pg.KEYDOWN and event.key == pg.K_TAB:
-                self.camera.use_orbit = not self.camera.use_orbit
-                self.camera.set_default()
-
-            if event.type == pg.KEYDOWN and event.key == pg.K_BACKQUOTE:
-                visible = not pg.mouse.get_visible()
-                pg.mouse.set_visible(visible)
-                pg.event.set_grab(not visible)
-
-            if event.type == pg.MOUSEBUTTONDOWN and self.camera.use_orbit:
-                if event.button == 4:
-                    self.camera.orbit_radius = max(2.0, self.camera.orbit_radius - 0.5)
-                elif event.button == 5:
-                    self.camera.orbit_radius = min(40.0, self.camera.orbit_radius + 0.5)
+        self.input.update()
+        
+        if self.input.quit_requested:
+            self.running = False
+            return
+        
+        if self.input.camera_mode_toggle_requested:
+            self.camera.use_orbit = not self.camera.use_orbit
+            self.camera.set_default()
+        
+        if self.input.mouse_visible_toggle_requested:
+            visible = not pg.mouse.get_visible()
+            pg.mouse.set_visible(visible)
+            pg.event.set_grab(not visible)
+        
+        if self.camera.use_orbit:
+            if self.input.orbit_zoom_in:
+                self.camera.orbit_radius = max(2.0, self.camera.orbit_radius - 0.5)
+            elif self.input.orbit_zoom_out:
+                self.camera.orbit_radius = min(40.0, self.camera.orbit_radius + 0.5)
 
     def render(self):
         self.ctx.clear(color=self.background_color)
@@ -73,12 +77,16 @@ class SxvxnEngine:
         self.scene_renderer.destroy()
 
     def run(self):
-        while True:
+        while self.running:
             self.get_time()
             self.check_events()
             self.camera.update()
             self.render()
             self.delta_time = self.clock.tick(60)
+        
+        self.destroy()
+        pg.quit()
+        sys.exit()
 
 
 if __name__ == '__main__':
