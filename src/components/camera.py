@@ -86,10 +86,7 @@ class Camera:
         if input_mgr.is_pressed(pg.K_DOWN):
             self.look_ud -= rotate_speed
 
-        dx, dy = pg.mouse.get_rel()
-        self.look_lr += dx * MOUSE_SENS
-        self.look_ud -= dy * MOUSE_SENS
-        self.look_ud = max(-89.0, min(89.0, self.look_ud))
+        self.rotate()
 
         theta = glm.radians(self.look_lr)
         phi = glm.radians(self.look_ud)
