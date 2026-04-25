@@ -15,38 +15,39 @@ import pygame as pg
 from pyglm import glm
 import math
 
-FOV        = 60.0
-NEAR       = 0.05
-FAR        = 200.0
+FOV = 60.0
+NEAR = 0.05
+FAR = 200.0
 ORBIT_SENS = 0.30
-PAN_SENS   = 0.006
-FPS_SENS   = 0.15
+PAN_SENS = 0.006
+FPS_SENS = 0.15
+MOUSE_SENS = 0.04
 
 
 class Camera:
-    def __init__(self, app):
+    def __init__(self, app, position=(6.0, 4.5, 6.0), look_lr=225.0, look_ud=-25.0):
         self.app = app
         self.aspect_ratio = app.WIN_SIZE[0] / app.WIN_SIZE[1]
         self.WIN_CX = app.WIN_SIZE[0] // 2
         self.WIN_CY = app.WIN_SIZE[1] // 2
 
         # ── Orbit state ───────────────────────────────────────────────
-        self.use_orbit    = True
+        self.use_orbit = True
         self.orbit_target = glm.vec3(0.0, 1.5, 0.0)
         self.orbit_radius = 14.0
-        self.orbit_yaw    = 30.0
-        self.orbit_pitch  = 20.0
+        self.orbit_yaw = 30.0
+        self.orbit_pitch = 20.0
 
         # ── FPS state (will be synced from orbit on first toggle) ─────
-        self.fps_pos   = glm.vec3(0.0, 4.0, 14.0)
-        self.fps_yaw   = 180.0
+        self.fps_pos = glm.vec3(0.0, 4.0, 14.0)
+        self.fps_yaw = 180.0
         self.fps_pitch = -10.0
 
         # ── Shared vectors ────────────────────────────────────────────
         self.position = glm.vec3(0)
-        self.forward  = glm.vec3(0, 0, -1)
-        self.up       = glm.vec3(0, 1, 0)
-        self.right    = glm.vec3(1, 0, 0)
+        self.forward = glm.vec3(0, 0, -1)
+        self.up = glm.vec3(0, 1, 0)
+        self.right = glm.vec3(1, 0, 0)
         self.world_up = glm.vec3(0, 1, 0)
         self.up = glm.vec3(0, 1, 0)
         self.right = glm.vec3(1, 0, 0)
@@ -83,7 +84,7 @@ class Camera:
     def move(self):
         input_mgr = self.app.input
         velocity = 0.02 * self.app.delta_time
-        
+
         if input_mgr.is_pressed(pg.K_LSHIFT) or input_mgr.is_pressed(pg.K_RSHIFT):
             velocity = 0.05 * self.app.delta_time
         elif input_mgr.is_pressed(pg.K_LCTRL) or input_mgr.is_pressed(pg.K_RCTRL):
@@ -105,7 +106,7 @@ class Camera:
     def update_orbit(self):
         input_mgr = self.app.input
         rotate_speed = 0.05 * self.app.delta_time
-        
+
         if input_mgr.is_pressed(pg.K_LSHIFT) or input_mgr.is_pressed(pg.K_RSHIFT):
             rotate_speed = 0.10 * self.app.delta_time
         elif input_mgr.is_pressed(pg.K_LCTRL) or input_mgr.is_pressed(pg.K_RCTRL):
@@ -142,9 +143,29 @@ class Camera:
             self._update_fps_vectors()
         self.m_view = self._make_view()
 
+    def set_default(self):
+        self.position = glm.vec3(6.0, 4.5, 6.0)
+        self.orbit_target = glm.vec3(0, 0.8, 0)
+        self.orbit_radius = 10.0
+        if self.use_orbit:
+            self.look_lr = 45.0
+            self.look_ud = 25.0
+        else:
+            self.look_lr = 225.0
+            self.look_ud = -25.0
+        self.update_camera_vectors()
+        self.m_view = self.get_view_matrix()
+
+    def get_view_matrix(self):
+        return glm.lookAt(self.position, self.position + self.forward, self.up)
+
+    def get_projection_matrix(self):
+        return glm.perspective(glm.radians(FOV), self.aspect_ratio, NEAR, FAR)
+
     # ─────────────────────────────────────────────────────────────────
     #  Toggle orbit <-> FPS  — KEY FIX: sync position from orbit
     # ─────────────────────────────────────────────────────────────────
+
     def toggle_mode(self):
         self.use_orbit = not self.use_orbit
 
@@ -176,13 +197,13 @@ class Camera:
             self._fps_warped = True
 
     def reset(self):
-        self.orbit_yaw    = 30.0
-        self.orbit_pitch  = 20.0
+        self.orbit_yaw = 30.0
+        self.orbit_pitch = 20.0
         self.orbit_radius = 14.0
         self.orbit_target = glm.vec3(0.0, 1.5, 0.0)
-        self.fps_pos      = glm.vec3(0.0, 4.0, 14.0)
-        self.fps_yaw      = 180.0
-        self.fps_pitch    = -10.0
+        self.fps_pos = glm.vec3(0.0, 4.0, 14.0)
+        self.fps_yaw = 180.0
+        self.fps_pitch = -10.0
         self._rmb = False
         self._mmb = False
         self._fps_warped = False
@@ -191,15 +212,15 @@ class Camera:
     #  Orbit internals
     # ─────────────────────────────────────────────────────────────────
     def _update_orbit(self):
-        yaw   = glm.radians(self.orbit_yaw)
+        yaw = glm.radians(self.orbit_yaw)
         pitch = glm.radians(self.orbit_pitch)
         x = self.orbit_radius * glm.cos(pitch) * glm.cos(yaw)
         y = self.orbit_radius * glm.sin(pitch)
         z = self.orbit_radius * glm.cos(pitch) * glm.sin(yaw)
         self.position = self.orbit_target + glm.vec3(x, y, z)
-        self.forward  = glm.normalize(self.orbit_target - self.position)
-        self.right    = glm.normalize(glm.cross(self.forward, self.world_up))
-        self.up       = glm.normalize(glm.cross(self.right, self.forward))
+        self.forward = glm.normalize(self.orbit_target - self.position)
+        self.right = glm.normalize(glm.cross(self.forward, self.world_up))
+        self.up = glm.normalize(glm.cross(self.right, self.forward))
 
     def _zoom(self, delta):
         if self.use_orbit:
@@ -211,29 +232,37 @@ class Camera:
     #  FPS internals
     # ─────────────────────────────────────────────────────────────────
     def _fps_keyboard(self):
-        keys  = pg.key.get_pressed()
+        keys = pg.key.get_pressed()
         speed = 0.04 * self.app.delta_time
-        if keys[pg.K_LSHIFT] or keys[pg.K_RSHIFT]: speed *= 3.0
-        if keys[pg.K_LCTRL]  or keys[pg.K_RCTRL]:  speed *= 0.3
+        if keys[pg.K_LSHIFT] or keys[pg.K_RSHIFT]:
+            speed *= 3.0
+        if keys[pg.K_LCTRL] or keys[pg.K_RCTRL]:
+            speed *= 0.3
 
-        if keys[pg.K_w]: self.fps_pos += self.forward * speed
-        if keys[pg.K_s]: self.fps_pos -= self.forward * speed
-        if keys[pg.K_a]: self.fps_pos -= self.right   * speed
-        if keys[pg.K_d]: self.fps_pos += self.right   * speed
-        if keys[pg.K_q]: self.fps_pos -= self.up      * speed
-        if keys[pg.K_e]: self.fps_pos += self.up      * speed
+        if keys[pg.K_w]:
+            self.fps_pos += self.forward * speed
+        if keys[pg.K_s]:
+            self.fps_pos -= self.forward * speed
+        if keys[pg.K_a]:
+            self.fps_pos -= self.right * speed
+        if keys[pg.K_d]:
+            self.fps_pos += self.right * speed
+        if keys[pg.K_q]:
+            self.fps_pos -= self.up * speed
+        if keys[pg.K_e]:
+            self.fps_pos += self.up * speed
 
     def _update_fps_vectors(self):
-        yaw   = math.radians(self.fps_yaw)
+        yaw = math.radians(self.fps_yaw)
         pitch = math.radians(self.fps_pitch)
         self.position = self.fps_pos
-        self.forward  = glm.normalize(glm.vec3(
+        self.forward = glm.normalize(glm.vec3(
             math.cos(yaw) * math.cos(pitch),
             math.sin(pitch),
             math.sin(yaw) * math.cos(pitch),
         ))
         self.right = glm.normalize(glm.cross(self.forward, self.world_up))
-        self.up    = glm.normalize(glm.cross(self.right, self.forward))
+        self.up = glm.normalize(glm.cross(self.right, self.forward))
 
     # ─────────────────────────────────────────────────────────────────
     #  Matrices

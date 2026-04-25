@@ -69,11 +69,9 @@ class AquariumEngine:
         # Scene objects
         self.scene = Scene(self)
 
-        # Input handler
-        self.input = InputHandler(self)
-
         # Renderer
         self.renderer = Renderer(self)
+        self.running = True
 
         # HUD font
         pg.font.init()
@@ -104,12 +102,6 @@ Simulation:
   ESC               - Quit
 ============================
 """
-
-    def check_events(self):
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
-                self.quit()
-            self.input.handle_event(event)
 
     def render_hud(self):
         """Overlay HUD info using pygame surface blitted over GL."""
@@ -178,11 +170,12 @@ Simulation:
             self.scene.update(self.delta_time, self.time)
         self.camera.update()
 
-    def quit(self):
+    def get_time(self):
+        self.time = pg.time.get_ticks() * 0.001
+
+    def destroy(self):
         self.mesh.destroy()
-        self.renderer.destroy()
-        pg.quit()
-        sys.exit()
+        self.scene_renderer.destroy()
 
     def run(self):
         while self.running:
