@@ -1,18 +1,4 @@
-"""
-AquariumScene - constructs the full aquarium layout and manages
-runtime lists of fish and bubbles.
-"""
-
-import random
-import math
-from model import SolidModel, GlassPanel, SandFloor, Seaweed, Fish, Bubble
-
-
-# Tank dimensions (half-extents)
-TANK_W = 5.0   # X half-width
-TANK_H = 6.0   # full height
-TANK_D = 5.0   # Z half-depth
-WALL_T = 0.12  # glass thickness
+from src.objects.model import ColorCube, ColorPlane
 
 
 class AquariumScene:
