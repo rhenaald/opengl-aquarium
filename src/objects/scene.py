@@ -1,4 +1,18 @@
-from src.objects.model import ColorCube, ColorPlane
+"""
+AquariumScene - constructs the full aquarium layout and manages
+runtime lists of fish and bubbles.
+"""
+
+import random
+import math
+from src.objects.model import SolidModel, GlassPanel, SandFloor, Seaweed, Fish, Bubble
+
+
+# Tank dimensions (half-extents)
+TANK_W = 5.0   # X half-width
+TANK_H = 6.0   # full height
+TANK_D = 5.0   # Z half-depth
+WALL_T = 0.12  # glass thickness
 
 
 class AquariumScene:
@@ -68,8 +82,7 @@ class AquariumScene:
 
         def add_glass(pos, rot, scale):
             self.glass_panels.append(
-                GlassPanel(app, pos=pos, rot=rot, scale=scale,
-                           tint=glass_tint, alpha=glass_alpha)
+                GlassPanel(app, pos=pos, rot=rot, scale=scale, tint=glass_tint, alpha=glass_alpha)
             )
 
         # Front (Z+)
