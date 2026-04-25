@@ -7,13 +7,26 @@ class VAO:
         self.ctx = ctx
         self.vbo = VBO(ctx)
         self.program = ShaderProgram(ctx)
-        self.vaos = {
-            'color_cube': self.get_vao(self.program.programs['default_color'], self.vbo.vbos['color_cube']),
-            'color_plane': self.get_vao(self.program.programs['default_color'], self.vbo.vbos['color_plane']),
-        }
 
-    def get_vao(self, program, vbo):
-        return self.ctx.vertex_array(program, [(vbo.vbo, vbo.format, *vbo.attribs)])
+        p = self.program.programs
+        v = self.vbo.vbos
+
+        def make(prog_name, vbo_name):
+            prog = p[prog_name]
+            vbo  = v[vbo_name]
+            return ctx.vertex_array(prog, [(vbo.vbo, vbo.format, *vbo.attribs)])
+
+        self.vaos = {
+            'tank_wall':    make('glass',       'glass_panel'),
+            'sand_floor':   make('sand',         'plane'),
+            'rock':         make('phong_color',  'cube'),
+            'coral':        make('phong_color',  'cylinder'),
+            'seaweed':      make('seaweed',      'cylinder'),
+            'fish':         make('fish',         'fish_body'),   # ← realistic mesh
+            'bubble':       make('bubble',       'sphere_tiny'),
+            'solid_cube':   make('phong_color',  'cube'),
+            'solid_sphere': make('phong_color',  'sphere'),
+        }
 
     def destroy(self):
         for vao in self.vaos.values():
