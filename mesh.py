@@ -1,6 +1,5 @@
 from vao import VAO
 
-
 class Mesh:
     def __init__(self, app):
         self.app = app
