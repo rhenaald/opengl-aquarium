@@ -9,15 +9,13 @@ Programs:
   - fish          : animated fish with simple color stripe
 """
 
-import os
+from pathlib import Path
 
 
 class ShaderProgram:
     def __init__(self, ctx):
         self.ctx = ctx
-        # ✅ SESUDAH
-        shader_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'shaders')
-        # Hasil: aquarium-opengl/shaders  ← folder yang benar!
+        shader_dir = Path(__file__).resolve().parents[2] / "shaders"
         self.programs = {
             'phong_color': self._load(shader_dir, 'phong_color'),
             'bubble':      self._load(shader_dir, 'bubble'),
