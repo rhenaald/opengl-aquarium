@@ -15,7 +15,9 @@ import os
 class ShaderProgram:
     def __init__(self, ctx):
         self.ctx = ctx
-        shader_dir = os.path.join(os.path.dirname(__file__), 'shaders')
+        # ✅ SESUDAH
+        shader_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'shaders')
+        # Hasil: aquarium-opengl/shaders  ← folder yang benar!
         self.programs = {
             'phong_color': self._load(shader_dir, 'phong_color'),
             'bubble':      self._load(shader_dir, 'bubble'),
