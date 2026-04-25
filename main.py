@@ -3,10 +3,9 @@ Aquarium 3D - Interactive OpenGL Simulation
 Entry point and main engine loop.
 """
 
-from src.renderer import AquariumRenderer as Renderer
-from src.objects.scene import AquariumScene as Scene
-from src.engine.input_manager import InputManager
-from src.objects.scene import AquariumScene as Scene
+from src.renderer import AquariumRenderer
+from src.objects.scene import AquariumScene
+# from src.engine.input_manager import InputManager
 from src.components.mesh import Mesh
 from src.components.point_light import PointLight
 from src.components.camera import Camera
@@ -54,7 +53,7 @@ class AquariumEngine:
         self.light = AquariumLight()
 
         # Camera
-        self.input = InputManager()
+        # self.input = InputManager()
         self.light = PointLight(position=(6.0, 8.0, 6.0),
                                 color=(1.0, 1.0, 1.0), intensity=1.2)
         self.camera = Camera(self)
@@ -70,6 +69,8 @@ class AquariumEngine:
 
         # Renderer
         self.renderer = AquariumRenderer(self)
+
+        self.running = True
 
         # HUD font
         pg.font.init()
@@ -104,65 +105,65 @@ class AquariumEngine:
                 self.quit()
             self.input.handle_event(event)
 
-    def render_hud(self):
-        """Overlay HUD info using pygame surface blitted over GL."""
-        # We'll draw HUD text as overlay
-        info_lines = [
-            f"FPS: {self.clock.get_fps():.0f}",
-            f"Sim: {'PAUSED' if self.sim.paused else 'RUNNING'}",
-            f"Bubbles: {len(self.scene.bubbles)}",
-            f"Fish: {len(self.scene.fish)}",
-            f"Wave Speed: {self.sim.wave_speed:.2f}",
-            f"Light: {self.sim.light_intensity:.2f}",
-            f"Cam: {'FPS' if not self.camera.use_orbit else 'Orbit'}",
-            f"[SPACE] Pause  [B] Bubble  [F] Fish",
-        ]
+    # def render_hud(self):
+    #     """Overlay HUD info using pygame surface blitted over GL."""
+    #     # We'll draw HUD text as overlay
+    #     info_lines = [
+    #         f"FPS: {self.clock.get_fps():.0f}",
+    #         f"Sim: {'PAUSED' if self.sim.paused else 'RUNNING'}",
+    #         f"Bubbles: {len(self.scene.bubbles)}",
+    #         f"Fish: {len(self.scene.fish)}",
+    #         f"Wave Speed: {self.sim.wave_speed:.2f}",
+    #         f"Light: {self.sim.light_intensity:.2f}",
+    #         f"Cam: {'FPS' if not self.camera.use_orbit else 'Orbit'}",
+    #         f"[SPACE] Pause  [B] Bubble  [F] Fish",
+    #     ]
 
-        # Draw text using pygame overlay technique
-        overlay = pg.Surface((260, len(info_lines) * 20 + 10), pg.SRCALPHA)
-        overlay.fill((0, 0, 0, 120))
-        for i, line in enumerate(info_lines):
-            color = (180, 255, 220) if i < 7 else (140, 200, 255)
-            text = self.font.render(line, True, color)
-            overlay.blit(text, (8, 5 + i * 20))
+    #     # Draw text using pygame overlay technique
+    #     overlay = pg.Surface((260, len(info_lines) * 20 + 10), pg.SRCALPHA)
+    #     overlay.fill((0, 0, 0, 120))
+    #     for i, line in enumerate(info_lines):
+    #         color = (180, 255, 220) if i < 7 else (140, 200, 255)
+    #         text = self.font.render(line, True, color)
+    #         overlay.blit(text, (8, 5 + i * 20))
 
-        # Temporarily switch to 2D rendering for HUD
-        # Use a separate pygame window surface trick:
-        pg.display.get_surface().blit(overlay, (10, 10))
+    #     # Temporarily switch to 2D rendering for HUD
+    #     # Use a separate pygame window surface trick:
+    #     pg.display.get_surface().blit(overlay, (10, 10))
 
-        self.scene = Scene(self)
-        self.scene_renderer = Renderer(self)
+    #     self.scene = Scene(self)
+    #     self.scene_renderer = Renderer(self)
 
-        self.running = True
+    #     self.running = True
 
-    def check_events(self):
-        self.input.update()
+    # def check_events(self):
+    #     self.input.update()
 
-        if self.input.quit_requested:
-            self.running = False
-            return
+    #     if self.input.quit_requested:
+    #         self.running = False
+    #         return
 
-        if self.input.camera_mode_toggle_requested:
-            self.camera.use_orbit = not self.camera.use_orbit
-            self.camera.set_default()
+    #     if self.input.camera_mode_toggle_requested:
+    #         self.camera.use_orbit = not self.camera.use_orbit
+    #         self.camera.set_default()
 
-        if self.input.mouse_visible_toggle_requested:
-            visible = not pg.mouse.get_visible()
-            pg.mouse.set_visible(visible)
-            pg.event.set_grab(not visible)
+    #     if self.input.mouse_visible_toggle_requested:
+    #         visible = not pg.mouse.get_visible()
+    #         pg.mouse.set_visible(visible)
+    #         pg.event.set_grab(not visible)
 
-        if self.camera.use_orbit:
-            if self.input.orbit_zoom_in:
-                self.camera.orbit_radius = max(
-                    2.0, self.camera.orbit_radius - 0.5)
-            elif self.input.orbit_zoom_out:
-                self.camera.orbit_radius = min(
-                    40.0, self.camera.orbit_radius + 0.5)
+    #     if self.camera.use_orbit:
+    #         if self.input.orbit_zoom_in:
+    #             self.camera.orbit_radius = max(
+    #                 2.0, self.camera.orbit_radius - 0.5)
+    #         elif self.input.orbit_zoom_out:
+    #             self.camera.orbit_radius = min(
+    #                 40.0, self.camera.orbit_radius + 0.5)
 
     def render(self):
         self.ctx.clear(color=(0.02, 0.06, 0.12, 1.0))
         self.renderer.render()
-        self.render_hud()
+        # self.render_hud()
         pg.display.flip()
 
     def update(self):
@@ -176,7 +177,13 @@ class AquariumEngine:
 
     def destroy(self):
         self.mesh.destroy()
-        self.scene_renderer.destroy()
+        # self.scene_renderer.destroy()
+
+    def quit(self):
+        self.mesh.destroy()
+        self.renderer.destroy()
+        pg.quit()
+        sys.exit()
 
     def run(self):
         while self.running:

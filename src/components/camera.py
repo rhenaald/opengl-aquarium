@@ -43,6 +43,8 @@ class Camera:
         self.fps_yaw = 180.0
         self.fps_pitch = -10.0
 
+        self._fps_warped = False
+
         # ── Shared vectors ────────────────────────────────────────────
         self.position = glm.vec3(0)
         self.forward = glm.vec3(0, 0, -1)
