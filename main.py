@@ -7,22 +7,15 @@ import sys
 import pygame as pg
 import moderngl as mgl
 
-<<<<<<< HEAD
-from camera import Camera
 from lighting import AquariumLight
-from mesh import Mesh
-from scene import AquariumScene
-from scene_renderer import AquariumRenderer
 from input_handler import InputHandler
 from simulation import SimulationState
-=======
 from src.components.camera import Camera
 from src.components.point_light import PointLight
 from src.components.mesh import Mesh
-from src.objects.scene import Scene
-from src.renderer import SceneRenderer
+from src.objects.scene import AquariumScene as Scene
+from src.renderer import AquariumRenderer as Renderer
 from src.engine.input_manager import InputManager
->>>>>>> 6126de50c48b3be8e44af01758db97c618060305
 
 
 class AquariumEngine:
@@ -35,7 +28,8 @@ class AquariumEngine:
         # OpenGL context setup
         pg.display.gl_set_attribute(pg.GL_CONTEXT_MAJOR_VERSION, 3)
         pg.display.gl_set_attribute(pg.GL_CONTEXT_MINOR_VERSION, 3)
-        pg.display.gl_set_attribute(pg.GL_CONTEXT_PROFILE_MASK, pg.GL_CONTEXT_PROFILE_CORE)
+        pg.display.gl_set_attribute(
+            pg.GL_CONTEXT_PROFILE_MASK, pg.GL_CONTEXT_PROFILE_CORE)
         pg.display.gl_set_attribute(pg.GL_DOUBLEBUFFER, 1)
         pg.display.set_mode(self.WIN_SIZE, flags=pg.OPENGL | pg.DOUBLEBUF)
 
@@ -57,7 +51,6 @@ class AquariumEngine:
         self.time = 0.0
         self.delta_time = 0.0
 
-<<<<<<< HEAD
         # Simulation state (pause/play, parameters)
         self.sim = SimulationState()
 
@@ -65,24 +58,22 @@ class AquariumEngine:
         self.light = AquariumLight()
 
         # Camera
-=======
         self.input = InputManager()
-        self.light = PointLight(position=(6.0, 8.0, 6.0), color=(1.0, 1.0, 1.0), intensity=1.2)
->>>>>>> 6126de50c48b3be8e44af01758db97c618060305
+        self.light = PointLight(position=(6.0, 8.0, 6.0),
+                                color=(1.0, 1.0, 1.0), intensity=1.2)
         self.camera = Camera(self)
 
         # Geometry & shaders
         self.mesh = Mesh(self)
-<<<<<<< HEAD
 
         # Scene objects
-        self.scene = AquariumScene(self)
+        self.scene = Scene(self)
 
         # Input handler
         self.input = InputHandler(self)
 
         # Renderer
-        self.renderer = AquariumRenderer(self)
+        self.renderer = Renderer(self)
 
         # HUD font
         pg.font.init()
@@ -145,34 +136,35 @@ Simulation:
         # Temporarily switch to 2D rendering for HUD
         # Use a separate pygame window surface trick:
         pg.display.get_surface().blit(overlay, (10, 10))
-=======
+
         self.scene = Scene(self)
-        self.scene_renderer = SceneRenderer(self)
-        
+        self.scene_renderer = Renderer(self)
+
         self.running = True
 
     def check_events(self):
         self.input.update()
-        
+
         if self.input.quit_requested:
             self.running = False
             return
-        
+
         if self.input.camera_mode_toggle_requested:
             self.camera.use_orbit = not self.camera.use_orbit
             self.camera.set_default()
-        
+
         if self.input.mouse_visible_toggle_requested:
             visible = not pg.mouse.get_visible()
             pg.mouse.set_visible(visible)
             pg.event.set_grab(not visible)
-        
+
         if self.camera.use_orbit:
             if self.input.orbit_zoom_in:
-                self.camera.orbit_radius = max(2.0, self.camera.orbit_radius - 0.5)
+                self.camera.orbit_radius = max(
+                    2.0, self.camera.orbit_radius - 0.5)
             elif self.input.orbit_zoom_out:
-                self.camera.orbit_radius = min(40.0, self.camera.orbit_radius + 0.5)
->>>>>>> 6126de50c48b3be8e44af01758db97c618060305
+                self.camera.orbit_radius = min(
+                    40.0, self.camera.orbit_radius + 0.5)
 
     def render(self):
         self.ctx.clear(color=(0.02, 0.06, 0.12, 1.0))
@@ -193,17 +185,13 @@ Simulation:
         sys.exit()
 
     def run(self):
-<<<<<<< HEAD
-        while True:
-=======
         while self.running:
             self.get_time()
->>>>>>> 6126de50c48b3be8e44af01758db97c618060305
             self.check_events()
             self.update()
             self.render()
             self.delta_time = self.clock.tick(60)
-        
+
         self.destroy()
         pg.quit()
         sys.exit()
