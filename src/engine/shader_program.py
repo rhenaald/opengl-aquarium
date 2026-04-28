@@ -28,6 +28,7 @@ class ShaderProgram:
             'sand':        self._load(shader_dir, 'sand'),
             'fish':        self._load(shader_dir, 'fish'),
             'seaweed':     self._load(shader_dir, 'seaweed'),
+            'water_surface':  self._load(shader_dir, 'water_surface'),
         }
 
     def _load(self, shader_dir, name):
