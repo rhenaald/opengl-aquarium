@@ -33,6 +33,16 @@ class AquariumScene:
         self._spawn_initial_fish()
         self._spawn_initial_bubbles()
 
+    @property
+    def objects(self):
+        """Return a live list of all scene objects for HUD / debug introspection."""
+        return [
+            *self.static_opaque,
+            *self.glass_panels,
+            *self.fish,
+            *self.bubbles,
+        ]
+
     # ──────────────────────────────────────────────────────────────────
     #  Build
     # ──────────────────────────────────────────────────────────────────
@@ -182,6 +192,14 @@ class AquariumScene:
         if len(self.fish) < self.app.sim.max_fish + 10:
             self.fish.append(Fish(self.app))
 
+    # Fungsi yang mengatur jumlah ikan sesuai dengan nilai target dari HUD slider / state simulasi
+    def _enforce_fish_target(self):
+        target = max(0, self.app.sim.max_fish)
+        while len(self.fish) < target:
+            self.fish.append(Fish(self.app))
+        if len(self.fish) > target:
+            self.fish = self.fish[:target]
+
     # ──────────────────────────────────────────────────────────────────
     #  Update
     # ──────────────────────────────────────────────────────────────────
@@ -193,6 +211,9 @@ class AquariumScene:
         if self._bubble_timer > spawn_interval and len(self.bubbles) < self.app.sim.max_bubbles:
             self.bubbles.append(Bubble(self.app))
             self._bubble_timer = 0.0
+
+        # Enforce fish target count from HUD slider / simulation state
+        self._enforce_fish_target()
 
         # Update fish
         for f in self.fish:

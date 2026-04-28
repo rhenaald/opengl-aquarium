@@ -12,6 +12,10 @@ class InputHandler:
 
         cam.handle_event(event)
 
+        # Slider
+        if hasattr(self.app, 'hud'):
+            self.app.hud.handle_event(event)
+
         if event.type == pg.KEYDOWN:
             key = event.key
 
