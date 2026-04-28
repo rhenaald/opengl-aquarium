@@ -183,7 +183,7 @@ class AquariumRenderer:
             b.render()
 
     def _render_water_volume(self):
-        self.ctx.enable_only(mgl.CULL_FACE | mgl.BLEND)
+        self.ctx.enable_only(mgl.BLEND)
         self.ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
         self.water_volume.render()
 

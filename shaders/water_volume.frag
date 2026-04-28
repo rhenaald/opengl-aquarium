@@ -125,11 +125,9 @@ vec3 reconstructWorld(vec2 uv, float depth) {
 void main() {
     vec2 uv = gl_FragCoord.xy / u_viewport_size;
     float scene_depth = texture(u_scene_depth, uv).r;
-    if (scene_depth >= 0.999999) {
-        discard;
-    }
+    bool has_scene_hit = scene_depth < 0.999999;
 
-    vec3 visible_pos = reconstructWorld(uv, scene_depth);
+    vec3 visible_pos = has_scene_hit ? reconstructWorld(uv, scene_depth) : frag_pos;
     vec3 ray_vec = visible_pos - cam_pos;
     float visible_t = length(ray_vec);
     if (visible_t <= 0.0001) {
@@ -139,27 +137,28 @@ void main() {
     vec3 ray_dir = ray_vec / visible_t;
     vec2 hit = ray_box(cam_pos, ray_dir, u_box_min, u_box_max);
     float enter_t = max(hit.x, 0.0);
-    float exit_t = min(hit.y, visible_t);
+    float exit_t = has_scene_hit ? min(hit.y, visible_t) : hit.y;
 
     if (exit_t <= enter_t) {
         discard;
     }
 
-    if (!pointInFootprint(visible_pos.xz)) {
+    vec3 sample_pos = has_scene_hit ? visible_pos : frag_pos;
+    if (!pointInFootprint(sample_pos.xz)) {
         discard;
     }
 
-    float surface_y = surfaceHeight(visible_pos.xz, u_time);
-    if (visible_pos.y > surface_y) {
+    float surface_y = surfaceHeight(sample_pos.xz, u_time);
+    if (sample_pos.y > surface_y) {
         discard;
     }
 
     float eps = 0.05;
-    float h = waterHeight(visible_pos.xz, u_time);
-    float hx = waterHeight(visible_pos.xz + vec2(eps, 0.0), u_time);
-    float hz = waterHeight(visible_pos.xz + vec2(0.0, eps), u_time);
+    float h = waterHeight(sample_pos.xz, u_time);
+    float hx = waterHeight(sample_pos.xz + vec2(eps, 0.0), u_time);
+    float hz = waterHeight(sample_pos.xz + vec2(0.0, eps), u_time);
     vec3 surface_normal = normalize(vec3(-(hx - h) / eps, 1.0, -(hz - h) / eps));
-    vec3 surface_point = vec3(visible_pos.x, surface_y, visible_pos.z);
+    vec3 surface_point = vec3(sample_pos.x, surface_y, sample_pos.z);
 
     float denom = dot(ray_dir, surface_normal);
     if (abs(denom) > 0.0001) {
@@ -183,15 +182,18 @@ void main() {
     float path_len = exit_t - enter_t;
     vec3 sigma = vec3(1.65, 0.95, 0.55) * u_absorption;
     vec3 transmittance = exp(-sigma * path_len);
-    float alpha = clamp(1.0 - dot(transmittance, vec3(0.333333)), 0.0, 0.68);
+    float alpha = clamp(1.0 - dot(transmittance, vec3(0.333333)), 0.0, 0.72);
 
     float water_height = max(surface_y - u_box_min.y, 0.0001);
-    float surface_fade = smoothstep(0.0, 1.0, clamp((visible_pos.y - u_box_min.y) / water_height, 0.0, 1.0));
+    float surface_fade = smoothstep(0.0, 1.0, clamp((sample_pos.y - u_box_min.y) / water_height, 0.0, 1.0));
     float depth_factor = 1.0 - surface_fade;
     vec3 shallow_color = u_water_color * 1.18 + vec3(0.02, 0.05, 0.07);
     vec3 deep_color = u_water_color * vec3(0.55, 0.68, 0.92);
     vec3 vertical_color = mix(deep_color, shallow_color, surface_fade);
     vec3 absorbed_color = vertical_color * mix(vec3(0.72, 0.78, 0.90), transmittance, 0.45);
     absorbed_color *= mix(vec3(1.0), vec3(0.86, 0.90, 0.96), depth_factor * 0.65);
+    if (!has_scene_hit) {
+        alpha *= 0.78;
+    }
     fragColor = vec4(absorbed_color, alpha);
 }

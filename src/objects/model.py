@@ -158,8 +158,6 @@ class SandFloor(BaseModel):
         self.program['u_roughness_map'].value = 2
         self.program['u_height_map'].value = 3
         _set(self.program, 'u_sand_tile', glm.vec2(6.0, 6.0))
-        _set(self.program, 'u_disp_strength', 0.035)
-        _set(self.program, 'u_ripple_strength', 0.030)
         _set(self.program, 'u_normal_strength', 0.8)
         _set(self.program, 'u_micro_normal_strength', 0.3)
         _set(self.program, 'u_floor_half_extent', self.half_extent)

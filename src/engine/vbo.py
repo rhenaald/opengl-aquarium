@@ -115,44 +115,157 @@ class PlaneVBO(BaseVBO):
         return np.array(data, dtype='f4').reshape(-1, 6)
 
 
-class SandGridVBO(BaseVBO):
-    format = '2f 3f'
-    attribs = ['in_uv', 'in_position']
+class SandBedVBO(BaseVBO):
+    format = '3f 2f 3f'
+    attribs = ['in_normal', 'in_uv', 'in_position']
 
-    def __init__(self, ctx, subdivisions=128, size=1.0):
+    def __init__(self, ctx, subdivisions=128, size=1.0, thickness=0.35):
         self.subdivisions = subdivisions
         self.size = size
+        self.thickness = thickness
         super().__init__(ctx)
+
+    @staticmethod
+    def _smoothstep(edge0, edge1, x):
+        t = min(max((x - edge0) / (edge1 - edge0), 0.0), 1.0)
+        return t * t * (3.0 - 2.0 * t)
+
+    @staticmethod
+    def _hash(ix, iz):
+        value = math.sin(ix * 127.1 + iz * 311.7) * 43758.5453123
+        return value - math.floor(value)
+
+    @classmethod
+    def _noise(cls, x, z):
+        ix = math.floor(x)
+        iz = math.floor(z)
+        fx = x - ix
+        fz = z - iz
+        ux = fx * fx * (3.0 - 2.0 * fx)
+        uz = fz * fz * (3.0 - 2.0 * fz)
+
+        a = cls._hash(ix, iz)
+        b = cls._hash(ix + 1, iz)
+        c = cls._hash(ix, iz + 1)
+        d = cls._hash(ix + 1, iz + 1)
+        return (a + (b - a) * ux) * (1.0 - uz) + (c + (d - c) * ux) * uz
+
+    def _edge_fade(self, x, z):
+        dist = self.size - max(abs(x), abs(z))
+        return self._smoothstep(0.05, 0.95, dist)
+
+    def _height(self, x, z):
+        fade = self._edge_fade(x, z)
+        ridge_a = math.sin(x * 1.05 + z * 0.42 + 0.7) * 0.12
+        ridge_b = math.sin(x * -0.62 + z * 1.28 + 2.4) * 0.08
+        ridge_c = math.sin(x * 1.85 - z * 1.55 + 1.1) * 0.035
+        broad_noise = (self._noise(x * 0.62 + 12.0, z * 0.62 - 4.0) - 0.5) * 0.11
+        fine_noise = (self._noise(x * 1.55 - 7.0, z * 1.55 + 9.0) - 0.5) * 0.035
+        shaped = ridge_a + ridge_b + ridge_c + broad_noise + fine_noise
+        return max(0.0, (0.10 + shaped) * fade)
+
+    @staticmethod
+    def _norm(v):
+        length = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+        if length <= 1e-8:
+            return (0.0, 1.0, 0.0)
+        return (v[0] / length, v[1] / length, v[2] / length)
+
+    def _normal(self, x, z):
+        eps = 0.06
+        h_l = self._height(x - eps, z)
+        h_r = self._height(x + eps, z)
+        h_d = self._height(x, z - eps)
+        h_u = self._height(x, z + eps)
+        return self._norm((-(h_r - h_l) / (2.0 * eps), 1.0, -(h_u - h_d) / (2.0 * eps)))
 
     def get_vertex_data(self):
         n = self.subdivisions
         s = self.size
+        bottom_y = -self.thickness
         data = []
 
-        def emit(px, pz, u, v):
-            data.extend((u, v))
-            data.extend((px, 0.0, pz))
+        def uv_for(x, z):
+            return ((x + s) / (2.0 * s), (z + s) / (2.0 * s))
+
+        def emit(normal, uv, pos):
+            data.extend(normal)
+            data.extend(uv)
+            data.extend(pos)
+
+        def top_vertex(x, z):
+            return (self._normal(x, z), uv_for(x, z), (x, self._height(x, z), z))
+
+        def emit_top(a, b, c):
+            for normal, uv, pos in (a, b, c):
+                emit(normal, uv, pos)
 
         for iz in range(n):
             z0 = -s + 2.0 * s * iz / n
             z1 = -s + 2.0 * s * (iz + 1) / n
-            v0 = iz / n
-            v1 = (iz + 1) / n
             for ix in range(n):
                 x0 = -s + 2.0 * s * ix / n
                 x1 = -s + 2.0 * s * (ix + 1) / n
-                u0 = ix / n
-                u1 = (ix + 1) / n
 
-                emit(x0, z0, u0, v0)
-                emit(x1, z1, u1, v1)
-                emit(x1, z0, u1, v0)
+                p00 = top_vertex(x0, z0)
+                p10 = top_vertex(x1, z0)
+                p01 = top_vertex(x0, z1)
+                p11 = top_vertex(x1, z1)
 
-                emit(x0, z0, u0, v0)
-                emit(x0, z1, u0, v1)
-                emit(x1, z1, u1, v1)
+                emit_top(p00, p11, p10)
+                emit_top(p00, p01, p11)
 
-        return np.array(data, dtype='f4').reshape(-1, 5)
+        def emit_quad(normal, a, b, c, d):
+            ua = uv_for(a[0], a[2])
+            ub = uv_for(b[0], b[2])
+            uc = uv_for(c[0], c[2])
+            ud = uv_for(d[0], d[2])
+            for uv, pos in ((ua, a), (uc, c), (ub, b), (ua, a), (ud, d), (uc, c)):
+                emit(normal, uv, pos)
+
+        # Side walls follow the wavy top edge, making the sand a real slab.
+        for i in range(n):
+            a = -s + 2.0 * s * i / n
+            b = -s + 2.0 * s * (i + 1) / n
+
+            emit_quad(
+                (0.0, 0.0, -1.0),
+                (a, bottom_y, -s),
+                (b, bottom_y, -s),
+                (b, self._height(b, -s), -s),
+                (a, self._height(a, -s), -s),
+            )
+            emit_quad(
+                (0.0, 0.0, 1.0),
+                (b, bottom_y, s),
+                (a, bottom_y, s),
+                (a, self._height(a, s), s),
+                (b, self._height(b, s), s),
+            )
+            emit_quad(
+                (-1.0, 0.0, 0.0),
+                (-s, bottom_y, b),
+                (-s, bottom_y, a),
+                (-s, self._height(-s, a), a),
+                (-s, self._height(-s, b), b),
+            )
+            emit_quad(
+                (1.0, 0.0, 0.0),
+                (s, bottom_y, a),
+                (s, bottom_y, b),
+                (s, self._height(s, b), b),
+                (s, self._height(s, a), a),
+            )
+
+        emit_quad(
+            (0.0, -1.0, 0.0),
+            (-s, bottom_y, s),
+            (s, bottom_y, s),
+            (s, bottom_y, -s),
+            (-s, bottom_y, -s),
+        )
+
+        return np.array(data, dtype='f4').reshape(-1, 8)
 
 
 # ── Sphere ────────────────────────────────────────────────────────────────────
@@ -827,7 +940,7 @@ class VBO:
             'cube_pos':      CubePositionVBO(ctx),
             'cube':          CubeVBO(ctx),
             'plane':         PlaneVBO(ctx, size=1.0),
-            'sand_grid':     SandGridVBO(ctx, subdivisions=128, size=5.0),
+            'sand_grid':     SandBedVBO(ctx, subdivisions=128, size=5.0),
             'sphere':        SphereVBO(ctx, stacks=8, slices=12),
             'sphere_tiny':   SphereVBO(ctx, stacks=5, slices=8),
             'cylinder':      CylinderVBO(ctx, segments=10, height=1.0, radius=1.0),
