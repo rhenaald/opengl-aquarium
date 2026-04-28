@@ -61,7 +61,7 @@ class AquariumScene:
 
         # --- Sand floor ---
         self.static_opaque.append(
-            SandFloor(app, pos=(0, 0, 0), scale=(W, 1, D))
+            SandFloor(app, pos=(0, 0, 0), scale=(1, 1, 1), half_extent=(W, D))
         )
 
         # --- Glass walls ---

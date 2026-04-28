@@ -18,13 +18,23 @@ uniform float u_sun_cutoff;
 uniform float u_water_surface_y;
 uniform float u_caustic_strength;
 uniform float u_caustic_speed;
+uniform sampler2D u_albedo_map;
+uniform sampler2D u_normal_map;
+uniform sampler2D u_roughness_map;
+uniform sampler2D u_height_map;
+uniform vec2 u_sand_tile;
+uniform float u_normal_strength;
+uniform float u_micro_normal_strength;
 
 in vec3 frag_pos;
-in vec3 normal;
+in vec2 v_uv;
+in vec3 v_tangent;
+in vec3 v_bitangent;
+in vec3 v_normal;
+in float v_height;
 
 out vec4 fragColor;
 
-// Pseudo-random hash for sand grain variation
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
@@ -103,28 +113,42 @@ float projected_caustic(vec3 p, vec3 n) {
 }
 
 void main() {
-    vec3 N = normalize(normal);
+    vec2 tiled_uv = v_uv * u_sand_tile;
+    vec3 albedo = texture(u_albedo_map, tiled_uv).rgb;
+    albedo *= vec3(1.03, 0.99, 0.94);
+    albedo *= mix(0.94, 1.04, sandNoise(frag_pos.xz * 4.0));
+
+    vec3 map_n = texture(u_normal_map, tiled_uv).xyz * 2.0 - 1.0;
+    map_n.xy *= u_normal_strength;
+    map_n.z = mix(1.0, map_n.z, u_normal_strength);
+
+    float micro = sandNoise(frag_pos.xz * 22.0 + u_time * 0.02) - 0.5;
+    map_n.xy += micro * u_micro_normal_strength;
+    map_n = normalize(map_n);
+
+    mat3 tbn = mat3(normalize(v_tangent), normalize(v_bitangent), normalize(v_normal));
+    vec3 N = normalize(tbn * map_n);
     vec3 L = normalize(light.position - frag_pos);
     vec3 V = normalize(cam_pos - frag_pos);
-    vec3 R = reflect(-L, N);
-
-    // Sand color with subtle grain variation
-    float grain = sandNoise(frag_pos.xz * 6.0);
-    vec3 sandBase  = vec3(0.76, 0.65, 0.42);
-    vec3 sandDark  = vec3(0.58, 0.48, 0.30);
-    vec3 sandColor = mix(sandDark, sandBase, grain);
+    vec3 H = normalize(L + V);
 
     float diff = max(dot(N, L), 0.0);
-    float spec = pow(max(dot(V, R), 0.0), 12.0) * step(0.001, diff);
+    float raw_rough = texture(u_roughness_map, tiled_uv).r;
+    float height_tex = texture(u_height_map, tiled_uv).r;
+    float roughness = clamp(mix(0.90, 0.75, raw_rough * 0.7 + height_tex * 0.3), 0.75, 0.90);
+    float ao = clamp(0.82 + height_tex * 0.14 + v_height * 0.08, 0.72, 1.0);
+
+    float shininess = mix(18.0, 6.0, roughness);
+    float spec = pow(max(dot(N, H), 0.0), shininess) * diff;
+    vec3 F0 = vec3(0.22);
 
     float caus = projected_caustic(frag_pos, N);
-    vec3 causticLight = vec3(0.18, 0.28, 0.34) * caus;
+    vec3 caustic_light = vec3(0.16, 0.24, 0.28) * min(caus, 0.65);
 
-    vec3 ambient  = light.Ia * sandColor * 0.9;
-    vec3 diffuse  = light.Id * diff * sandColor + causticLight;
-    vec3 specular = light.Is * spec * vec3(0.3, 0.35, 0.4);
+    vec3 ambient = light.Ia * albedo * ao;
+    vec3 diffuse = light.Id * diff * albedo;
+    vec3 specular = light.Is * spec * F0 * (1.0 - roughness * 0.55);
 
-    vec3 color = ambient + diffuse + specular;
-
+    vec3 color = ambient + diffuse + specular + caustic_light;
     fragColor = vec4(color, 1.0);
 }
