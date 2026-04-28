@@ -78,8 +78,14 @@ class HUD:
         self.INNER = 12
         self.GAP   = 5
 
+        self.slider_min = 0
+        self.slider_max = 16
+        self.slider_dragging = False
+        self.slider_value = self.app.sim.max_fish
+        self.slider_rect = None
+
         self._tick     = 0.0
-        self._obj_info = None   # lazy
+        self._obj_info = None
 
     # ── Data ─────────────────────────────────────────────────────────────────
 
@@ -92,13 +98,13 @@ class HUD:
     # ── Entry point ───────────────────────────────────────────────────────────
 
     def render(self, screen):
-        if self._obj_info is None:
-            self._obj_info = self._collect_objects()
+        self._obj_info = self._collect_objects()
 
         self._tick += 0.04
 
         hud = _surf(self.W, self.H)
         self._draw_topbar(hud)
+        self._draw_fish_slider(hud)
         self._draw_live_panel(hud)
         self._draw_object_panel(hud)
         self._draw_controls_panel(hud)
@@ -252,6 +258,7 @@ class HUD:
                 ("SPACE",  "Pause / Play"),
                 ("B",      "Spawn bubble"),
                 ("F",      "Spawn fish"),
+                ("DRAG",   "Adjust fish count"),
                 ("ESC",    "Quit"),
             ]
 
@@ -283,6 +290,79 @@ class HUD:
             ry += ROW_H
 
         dst.blit(panel, (self.W - self.PAD - PANEL_W, self.H - self.PAD - PANEL_H))
+
+    # ── Fish target slider (center bottom on screen) ──────────────────────────
+
+    def _draw_fish_slider(self, dst):
+        target = self.app.sim.max_fish
+        self.slider_value = target
+
+        PANEL_W = 360
+        PANEL_H = 86
+        x = self.W // 2 - PANEL_W // 2
+        y = self.H - self.PAD - PANEL_H
+
+        panel = _surf(PANEL_W, PANEL_H)
+        _panel(panel, (0, 0, PANEL_W, PANEL_H), radius=14)
+
+        hdr = self.f_s.render("FISH TARGET", True, GLOW_CYAN)
+        panel.blit(hdr, (self.INNER, self.INNER))
+
+        # Slider track
+        track_y = self.INNER + FS_M + 16
+        track_h = 6
+        track_x = self.INNER
+        track_w = PANEL_W - self.INNER * 2
+        _filled(panel, (track_x, track_y, track_w, track_h), (*TEXT_DIM[:3], 120), r=3)
+
+        # Handle
+        handle_x = track_x + int((target - self.slider_min) / max(1, self.slider_max - self.slider_min) * track_w)
+        handle_y = track_y + track_h // 2
+        _dot(panel, handle_x, handle_y, 9, GLOW_GREEN)
+        _outline(panel, (handle_x - 10, handle_y - 10, 20, 20), (*GLOW_CYAN[:3], 180), w=2, r=10)
+
+        # Labels
+        value_label = self.f_m.render(f"{target} fish", True, TEXT_BRIGHT)
+        panel.blit(value_label, (self.INNER, track_y + track_h + 12))
+
+        min_label = self.f_xs.render(str(self.slider_min), True, TEXT_MID)
+        max_label = self.f_xs.render(str(self.slider_max), True, TEXT_MID)
+        panel.blit(min_label, (track_x, track_y + track_h + 12))
+        panel.blit(max_label, (track_x + track_w - max_label.get_width(), track_y + track_h + 12))
+
+        self.slider_rect = pg.Rect(x + track_x, y + track_y, track_w, track_h)
+        self.slider_handle_rect = pg.Rect(x + handle_x - 12, y + handle_y - 12, 24, 24)
+
+        dst.blit(panel, (x, y))
+
+    def _pos_to_hud(self, pos):
+        x, y = pos
+        return x, y
+
+    def _update_slider_value(self, mouse_x):
+        if self.slider_rect is None:
+            return
+
+        rel_x = mouse_x - self.slider_rect.x
+        rel_x = max(0, min(rel_x, self.slider_rect.width))
+        frac = rel_x / max(1, self.slider_rect.width)
+        value = round(self.slider_min + frac * (self.slider_max - self.slider_min))
+        self.app.sim.max_fish = value
+        self.slider_value = value
+
+    def handle_event(self, event):
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            hx, hy = self._pos_to_hud(event.pos)
+            if self.slider_rect and self.slider_rect.collidepoint(hx, hy):
+                self.slider_dragging = True
+                self._update_slider_value(hx)
+
+        elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
+            self.slider_dragging = False
+
+        elif event.type == pg.MOUSEMOTION and self.slider_dragging:
+            hx, hy = self._pos_to_hud(event.pos)
+            self._update_slider_value(hx)
 
     # ── Mode pill (top-right, under bar) ──────────────────────────────────────
 
