@@ -113,6 +113,11 @@ class GlassPanel(BaseModel):
         self._upload_common()
         _set(self.program, 'u_tint',  self.tint)
         _set(self.program, 'u_alpha', self.alpha)
+        _set(self.program, 'u_ior', 1.5)
+        _set(self.program, 'u_thickness', 0.08)
+        _set(self.program, 'u_absorption_color', glm.vec3(0.10, 0.045, 0.025))
+        _set(self.program, 'u_refraction_strength', 0.018)
+        _set(self.program, 'u_reflection_strength', 0.35)
         self.vao.render()
 
 
