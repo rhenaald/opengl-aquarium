@@ -11,8 +11,6 @@ from src.engine.input_handler import InputHandler
 from src.engine.simulation import SimulationState
 from src.objects.scene import AquariumScene
 from src.renderer import AquariumRenderer
-from input_handler import InputHandler
-from simulation import SimulationState
 from src.components.hud import HUD
 
 class AquariumEngine:
