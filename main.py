@@ -1,19 +1,16 @@
-"""
-Aquarium 3D - Interactive OpenGL Simulation
-Entry point and main engine loop.
-"""
-
 import sys
-import pygame as pg
+
 import moderngl as mgl
+import pygame as pg
 
 from src.components.camera import Camera
-from lighting import AquariumLight
+from src.components.lighting import AquariumLight
 from src.components.mesh import Mesh
+from src.engine.input_handler import InputHandler
+from src.engine.simulation import SimulationState
 from src.objects.scene import AquariumScene
 from src.renderer import AquariumRenderer
-from input_handler import InputHandler
-from simulation import SimulationState
+
 
 class AquariumEngine:
     WIN_SIZE = (1280, 720)
@@ -24,7 +21,9 @@ class AquariumEngine:
 
         pg.display.gl_set_attribute(pg.GL_CONTEXT_MAJOR_VERSION, 3)
         pg.display.gl_set_attribute(pg.GL_CONTEXT_MINOR_VERSION, 3)
-        pg.display.gl_set_attribute(pg.GL_CONTEXT_PROFILE_MASK, pg.GL_CONTEXT_PROFILE_CORE)
+        pg.display.gl_set_attribute(
+            pg.GL_CONTEXT_PROFILE_MASK, pg.GL_CONTEXT_PROFILE_CORE
+        )
         pg.display.gl_set_attribute(pg.GL_DOUBLEBUFFER, 1)
         self.screen = pg.display.set_mode(self.WIN_SIZE, flags=pg.OPENGL | pg.DOUBLEBUF)
 
@@ -35,18 +34,18 @@ class AquariumEngine:
         self.ctx = mgl.create_context(require=330)
         self.ctx.enable(flags=mgl.DEPTH_TEST | mgl.CULL_FACE | mgl.BLEND)
         self.ctx.blend_func = mgl.SRC_ALPHA, mgl.ONE_MINUS_SRC_ALPHA
-        self.ctx.gc_mode = 'auto'
+        self.ctx.gc_mode = "auto"
 
-        self.clock      = pg.time.Clock()
-        self.time       = 0.0
-        self.delta_time = 16.0   # safe default (ms)
+        self.clock = pg.time.Clock()
+        self.time = 0.0
+        self.delta_time = 16.0
 
-        self.sim      = SimulationState()
-        self.light    = AquariumLight()
-        self.camera   = Camera(self)
-        self.mesh     = Mesh(self)
-        self.scene    = AquariumScene(self)
-        self.input    = InputHandler(self)
+        self.sim = SimulationState()
+        self.light = AquariumLight()
+        self.camera = Camera(self)
+        self.mesh = Mesh(self)
+        self.scene = AquariumScene(self)
+        self.input = InputHandler(self)
         self.renderer = AquariumRenderer(self)
 
         print(self._controls_text())
@@ -84,7 +83,6 @@ class AquariumEngine:
         self.camera.update()
 
     def render(self):
-        # ── 3D scene ─────────────────────────────────────────────────
         self.ctx.clear(color=(0.02, 0.06, 0.12, 1.0))
         self.renderer.render()
 
@@ -104,6 +102,6 @@ class AquariumEngine:
             self.delta_time = self.clock.tick(60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = AquariumEngine()
     app.run()
