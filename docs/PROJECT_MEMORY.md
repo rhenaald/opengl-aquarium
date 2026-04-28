@@ -3,6 +3,8 @@
 ## Project
 OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, PyGLM, NumPy. Entry `main.py`. Opens 1280x720 OpenGL 3.3 core window. Renders 3D fish tank: sand, rocks, coral, seaweed, fish, bubbles, glass walls, skybox, water volume fog, projected caustics, lighting, camera modes, Pygame HUD overlay.
 
+Memory synced through commit `7ddb410` (`fix(water): fix random white speckles appearing in the water volume cube`). Previous memory baseline was `53c600799ebcb9c83928d62916fdd5effed26d69`.
+
 ## Commands
 - Install deps: `uv sync` or `pip install -r requirements.txt`.
 - Run app: `python main.py`.
@@ -14,12 +16,12 @@ OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, Py
 
 ## Architecture
 - `main.py` owns `AquariumEngine`, window/context setup, frame loop, HUD overlay texture, lifecycle.
-- `src/renderer.py` render passes: skybox first, opaque scene next, water volume overlay, transparent bubbles back-to-front, glass panels back-to-front last.
+- `src/renderer.py` render passes: skybox/opaque/bubbles into offscreen scene FBO, copy to composite FBO, depth-aware water volume tint into composite, copy to screen, then water surface and glass panels last.
 - `src/objects/scene.py` builds tank, decorations, initial fish/bubbles, runtime spawn/update.
-- `src/objects/model.py` renderable models: `BaseModel`, `SolidModel`, `GlassPanel`, `SandFloor`, `Seaweed`, `Fish`, `Bubble`.
+- `src/objects/model.py` renderable models: `BaseModel`, `SolidModel`, `GlassPanel`, `GlueSeam`, `SandFloor`, `WaterSurface`, `Seaweed`, `Fish`, `Bubble`.
 - `src/objects/skybox.py` loads cubemap faces from `assets/materials/skybox/sky_10_cubemap_2k/` and renders the background skybox.
-- `src/objects/water_volume.py` renders tank-sized Beer-Lambert absorption volume.
-- `src/engine/vbo.py` builds procedural meshes: skybox cube, cube, plane, sphere, cylinder, glass panel, fish body.
+- `src/objects/water_volume.py` renders tank-sized Beer-Lambert absorption volume using scene depth reconstruction.
+- `src/engine/vbo.py` builds procedural meshes: skybox cube, cube, plane, displaced sand bed, water grid, sphere, cylinder, glass panel, fish body.
 - `src/engine/vao.py` maps VBOs to shader programs + model VAO names.
 - `src/engine/shader_program.py` loads GLSL from `shaders/`.
 - `src/engine/simulation.py` stores mutable sim state: pause, wave speed, bubble count, light intensity, water preset, fish target, caustic speed.
@@ -33,7 +35,7 @@ OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, Py
 2. Engine constructs `SimulationState`, `AquariumLight`, `Camera`, `Mesh`, `AquariumScene`, `InputHandler`, `AquariumRenderer`, `HUD`.
 3. Each frame: `check_events()`, `update()`, `render()`, then `delta_time = clock.tick(60)`.
 4. Scene update advances fish, bubbles, seaweed, enforces HUD fish target.
-5. Renderer draws 3D scene; `main.py` draws HUD into RGBA texture, overlays with fullscreen triangle strip.
+5. Renderer draws 3D scene through scene/composite FBOs; `main.py` draws HUD into RGBA texture, overlays with fullscreen triangle strip.
 
 ## Controls
 - `RMB drag`: orbit rotate.
@@ -57,23 +59,29 @@ OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, Py
 ## Rendering Notes
 - Opaque pass uses depth test + cull face.
 - Skybox renders before scene with cubemap sampler and view translation stripped.
-- Water volume renders as translucent tank cube with Beer-Lambert absorption tint.
+- Scene FBO stores a color texture and depth texture. Composite FBO receives scene color, then water tint is blended into it before glass samples it.
+- Water volume is depth-aware: shader reconstructs visible world position from `u_scene_depth`, ray-marches/clips against animated water surface, and computes Beer-Lambert absorption by underwater path length.
+- Water volume proxy cube draws once per pixel with culling enabled: culls front faces when camera is outside water volume, culls back faces when camera is inside, then restores default back-face culling.
 - Bubble pass uses depth test + alpha blend, culling disabled.
-- Glass pass uses depth test + alpha blend, `depth_func` temporarily `<=`.
+- Water surface and glass pass use depth test + alpha blend, `depth_func` temporarily `<=`.
+- Glass pass samples `composite_color`, so refraction sees water volume tint.
 - Transparent objects sorted by squared camera distance, farthest first via negative distance key.
 - `_set()` in `model.py` silently skips missing shader uniforms; shared upload works across programs with different active uniforms.
 
 ## Scene Notes
 - Tank half extents: `TANK_W = 5.0`, `TANK_H = 6.0`, `TANK_D = 5.0`.
-- Initial scene: sand, frame cubes, 4 glass panels, rocks, coral cylinders, seaweed cylinders, gravel cubes, 5 fish, 20 bubbles.
+- Initial scene: procedural sand slab, 4 glass panels, glue seams/edge beads, rocks, coral cylinders, seaweed cylinders, gravel cubes, 5 fish, 20 bubbles.
 - `SimulationState.max_fish` default 8. Scene starts 5 fish, then `_enforce_fish_target()` grows to target during updates.
 - Manual fish spawn can exceed target up to `max_fish + 10`, but next update trims back to target.
 - Manual bubble spawn can exceed target up to `max_bubbles + 20`.
 
 ## Shader Notes
 - Shader files live in `shaders/`.
-- Loaded programs: `skybox`, `water_volume`, `phong_color`, `bubble`, `glass`, `sand`, `fish`, `seaweed`.
-- Opaque shaders now use projected distorted Voronoi caustics with sun spotlight fade and depth falloff.
+- Loaded programs: `skybox`, `water_volume`, `water_surface`, `phong_color`, `bubble`, `glass`, `sand`, `fish`, `seaweed`.
+- Sand floor uses `assets/materials/sand/` textures: `sand_diffuse.jpg`, `sand_normal_gl.png`, `sand_roughness.png`, `sand_displacement.png`. Renderer has fallback 1x1 textures if files are missing.
+- `SandBedVBO` builds real sand geometry with CPU-side height/noise and normals. Sand shader applies tiled albedo/normal/roughness/height maps, AO-style height shaping, and projected caustics.
+- Opaque shaders use projected distorted Voronoi caustics with sun spotlight fade and depth falloff.
+- `water_volume.frag` uses stable signed ray-box division, real homogeneous divide for depth reconstruction, and bounded underwater segment search to avoid view-dependent white speckles.
 - New renderable type usually needs VBO entry, VAO entry, shader program entry if new shader, model class or scene spawn.
 
 ## HUD Notes
@@ -88,7 +96,7 @@ OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, Py
 - Some comments contain Indonesian text + decorative Unicode box drawing.
 - No automated tests.
 - Running app needs working GPU/OpenGL context + display.
-- `assets/` currently untracked in git status.
+- Visual QA still needs manual app launch/orbit checks; automated checks are limited to Python compile/startup smoke.
 
 ## Style
 - Keep code consistent with existing direct OOP style.
