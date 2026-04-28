@@ -22,8 +22,14 @@ class WaterVolume:
         self.program['u_box_max'].write(self.box_max)
 
     def render(self):
+        surface = self.app.scene.water_surface
         self.program['m_view'].write(self.camera.m_view)
         self.program['cam_pos'].write(self.camera.position)
         self.program['u_water_color'].write(glm.vec3(self.sim.water_color))
         self.program['u_absorption'].value = 0.18
+        self.program['u_surface_base_y'].value = surface.pos.y
+        self.program['u_wave_amplitude'].value = self.sim.wave_amplitude
+        self.program['u_wave_frequency'].value = self.sim.wave_frequency
+        self.program['u_wave_speed'].value = self.sim.wave_speed
+        self.program['u_time'].value = self.app.time
         self.vao.render()
