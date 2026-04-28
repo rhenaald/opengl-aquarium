@@ -1,40 +1,27 @@
-"""
-SimulationState - manages all interactive parameters for the aquarium simulation.
-Pause/play, wave speed, bubble count, light intensity, water color presets.
-"""
-
-
 class SimulationState:
-    # Water color presets (ambient fog color for underwater feel)
     WATER_PRESETS = [
-        (0.04, 0.18, 0.32),   # Deep ocean blue
-        (0.05, 0.25, 0.22),   # Tropical teal
-        (0.10, 0.20, 0.38),   # Mediterranean blue
+        (0.04, 0.18, 0.32),
+        (0.05, 0.25, 0.22),
+        (0.10, 0.20, 0.38),
     ]
     PRESET_NAMES = ["Deep Ocean", "Tropical Teal", "Mediterranean"]
 
     def __init__(self):
         self.paused = False
 
-        # Wave parameters
-        self.wave_speed = 1.0       # multiplier
-        self.wave_amplitude = 0.08  # height of wave distortion
+        self.wave_speed = 1.0
+        self.wave_amplitude = 0.08
 
-        # Bubble parameters
         self.max_bubbles = 40
         self.bubble_rise_speed = 0.8
 
-        # Light
         self.light_intensity = 1.0
 
-        # Water color
         self.water_preset_idx = 0
         self.water_color = self.WATER_PRESETS[0]
 
-        # Fish
         self.max_fish = 8
 
-        # Caustic animation speed
         self.caustic_speed = 0.5
 
     def toggle_pause(self):
