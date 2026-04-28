@@ -46,6 +46,13 @@ class AquariumRenderer:
         for b in sorted_bubbles:
             b.render()
 
+        # ── 3.5. Water surface — transparent, no culling, no depth write ─
+        ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
+        ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
+        ctx.depth_func = '<='
+        scene.water_surface.render()
+        ctx.depth_func = '<'
+
         # ── 4. Glass panels — transparent, no culling, depth-write off ─
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
         ctx.depth_func = '<='   # LEQUAL

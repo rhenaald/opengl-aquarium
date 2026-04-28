@@ -140,6 +140,26 @@ class Seaweed(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  Water Surface
+# ─────────────────────────────────────────────────────────────────────────────
+
+class WaterSurface(BaseModel):
+    """Animated water surface plane with simplex noise displacement."""
+    def __init__(self, app, water_y=5.4, tank_half_w=5.0, tank_half_d=5.0):
+        super().__init__(app, 'water_surface',
+                         pos=(0, water_y, 0),
+                         rot=(0, 0, 0),
+                         scale=(tank_half_w, 1.0, tank_half_d))
+
+    def render(self):
+        self._upload_common()
+        _set(self.program, 'u_wave_amplitude', self.sim.wave_amplitude)
+        _set(self.program, 'u_wave_frequency', self.sim.wave_frequency)
+        _set(self.program, 'u_wave_speed',     self.sim.wave_speed)
+        self.vao.render()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  Fish
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -263,8 +283,8 @@ class Bubble(BaseModel):
         self.pos.x += self.drift_x * dt * 0.001
         self.pos.z += self.drift_z * dt * 0.001
 
-        # Pop at water surface
-        if self.pos.y > 5.8:
+        # Pop at water surface (lowered to stay below wave level)
+        if self.pos.y > 5.2:
             self.alive = False
 
         m = glm.mat4()
