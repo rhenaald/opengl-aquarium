@@ -8,6 +8,7 @@ AquariumRenderer - renders the scene in correct order:
 import os
 
 import pygame as pg
+import moderngl as mgl
 
 from src.objects.skybox import Skybox
 from src.objects.water_volume import WaterVolume
@@ -19,18 +20,25 @@ class AquariumRenderer:
         self.ctx = app.ctx
         self.scene = app.scene
         self.skybox = Skybox(app)
-        self.water_volume = WaterVolume(app)
         self._init_scene_target()
         self._init_glass_imperfections()
+        self._init_sand_material()
+        self.water_volume = WaterVolume(app)
 
     def _init_scene_target(self):
         size = self.app.WIN_SIZE
         self.scene_color = self.ctx.texture(size, 4)
         self.scene_color.filter = (self.ctx.LINEAR, self.ctx.LINEAR)
-        self.scene_depth = self.ctx.depth_renderbuffer(size)
+        self.scene_depth = self.ctx.depth_texture(size)
+        self.scene_depth.filter = (self.ctx.NEAREST, self.ctx.NEAREST)
         self.scene_fbo = self.ctx.framebuffer(
             color_attachments=[self.scene_color],
             depth_attachment=self.scene_depth,
+        )
+        self.composite_color = self.ctx.texture(size, 4)
+        self.composite_color.filter = (self.ctx.LINEAR, self.ctx.LINEAR)
+        self.composite_fbo = self.ctx.framebuffer(
+            color_attachments=[self.composite_color],
         )
 
     def _init_glass_imperfections(self):
@@ -84,12 +92,58 @@ class AquariumRenderer:
         self.glass_normal_map.repeat_x = True
         self.glass_normal_map.repeat_y = True
 
+    def _load_surface_texture(self, path, fallback_rgb):
+        if os.path.exists(path):
+            surface = pg.image.load(path).convert()
+            size = surface.get_size()
+            data = pg.image.tostring(surface, 'RGB', False)
+            texture = self.ctx.texture(size, 3, data=data)
+        else:
+            texture = self.ctx.texture((1, 1), 3, data=bytes(fallback_rgb))
+
+        texture.filter = (self.ctx.LINEAR_MIPMAP_LINEAR, self.ctx.LINEAR)
+        texture.repeat_x = True
+        texture.repeat_y = True
+        texture.build_mipmaps()
+        return texture
+
+    def _init_sand_material(self):
+        base_dir = os.path.normpath(os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            'assets',
+            'materials',
+            'sand',
+        ))
+        self.sand_material = {
+            'albedo': self._load_surface_texture(
+                os.path.join(base_dir, 'sand_diffuse.jpg'),
+                (194, 170, 122),
+            ),
+            'normal': self._load_surface_texture(
+                os.path.join(base_dir, 'sand_normal_gl.png'),
+                (128, 128, 255),
+            ),
+            'roughness': self._load_surface_texture(
+                os.path.join(base_dir, 'sand_roughness.png'),
+                (217, 217, 217),
+            ),
+            'height': self._load_surface_texture(
+                os.path.join(base_dir, 'sand_displacement.png'),
+                (128, 128, 128),
+            ),
+        }
+
     def render(self):
         self.scene_fbo.use()
         self.ctx.clear(color=(0.02, 0.06, 0.12, 1.0), depth=1.0)
         self._render_scene_color()
 
-        self.ctx.copy_framebuffer(self.ctx.screen, self.scene_fbo)
+        self.ctx.copy_framebuffer(self.composite_fbo, self.scene_fbo)
+        self.composite_fbo.use()
+        self._render_water_volume()
+
+        self.ctx.copy_framebuffer(self.ctx.screen, self.composite_fbo)
         self.ctx.screen.use()
         self._render_glass()
 
@@ -113,12 +167,7 @@ class AquariumRenderer:
         for f in scene.fish:
             f.render()
 
-        # ── 3. Water volume — Beer-Lambert absorption overlay ──────────
-        ctx.enable_only(self.ctx.BLEND)
-        ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
-        self.water_volume.render()
-
-        # ── 4. Bubbles — transparent, no back-face culling ─────────────
+        # ── 3. Bubbles — transparent, no back-face culling ─────────────
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
         ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
 
@@ -132,6 +181,11 @@ class AquariumRenderer:
         sorted_bubbles = sorted(scene.bubbles, key=bubble_dist)
         for b in sorted_bubbles:
             b.render()
+
+    def _render_water_volume(self):
+        self.ctx.enable_only(mgl.CULL_FACE | mgl.BLEND)
+        self.ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
+        self.water_volume.render()
 
     def _render_glass(self):
         scene = self.scene
@@ -163,7 +217,7 @@ class AquariumRenderer:
             program['u_normal_map'].value = 3
             program['u_has_imperfections'].value = 1.0 if self.has_glass_imperfections else 0.0
             program['u_has_normal_map'].value = 1.0 if self.has_glass_normal_map else 0.0
-            self.scene_color.use(location=0)
+            self.composite_color.use(location=0)
             self.skybox.texture.use(location=1)
             self.glass_imperfections.use(location=2)
             self.glass_normal_map.use(location=3)
@@ -174,7 +228,11 @@ class AquariumRenderer:
     def destroy(self):
         self.skybox.destroy()
         self.scene_fbo.release()
-        self.scene_depth.release()
         self.scene_color.release()
+        self.scene_depth.release()
+        self.composite_fbo.release()
+        self.composite_color.release()
         self.glass_imperfections.release()
         self.glass_normal_map.release()
+        for tex in self.sand_material.values():
+            tex.release()

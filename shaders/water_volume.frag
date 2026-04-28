@@ -10,6 +10,9 @@ uniform float u_wave_amplitude;
 uniform float u_wave_frequency;
 uniform float u_wave_speed;
 uniform float u_time;
+uniform sampler2D u_scene_depth;
+uniform mat4 u_inv_view_proj;
+uniform vec2 u_viewport_size;
 
 in vec3 frag_pos;
 
@@ -113,27 +116,50 @@ vec2 ray_box(vec3 ray_origin, vec3 ray_dir, vec3 box_min, vec3 box_max) {
     return vec2(enter_t, exit_t);
 }
 
+vec3 reconstructWorld(vec2 uv, float depth) {
+    vec4 clip = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 world = u_inv_view_proj * clip;
+    return world.xyz / max(world.w, 0.00001);
+}
+
 void main() {
-    vec3 ray_dir = normalize(frag_pos - cam_pos);
+    vec2 uv = gl_FragCoord.xy / u_viewport_size;
+    float scene_depth = texture(u_scene_depth, uv).r;
+    if (scene_depth >= 0.999999) {
+        discard;
+    }
+
+    vec3 visible_pos = reconstructWorld(uv, scene_depth);
+    vec3 ray_vec = visible_pos - cam_pos;
+    float visible_t = length(ray_vec);
+    if (visible_t <= 0.0001) {
+        discard;
+    }
+
+    vec3 ray_dir = ray_vec / visible_t;
     vec2 hit = ray_box(cam_pos, ray_dir, u_box_min, u_box_max);
     float enter_t = max(hit.x, 0.0);
-    float exit_t = hit.y;
+    float exit_t = min(hit.y, visible_t);
 
     if (exit_t <= enter_t) {
         discard;
     }
 
-    float surface_y = surfaceHeight(frag_pos.xz, u_time);
-    if (frag_pos.y > surface_y) {
+    if (!pointInFootprint(visible_pos.xz)) {
+        discard;
+    }
+
+    float surface_y = surfaceHeight(visible_pos.xz, u_time);
+    if (visible_pos.y > surface_y) {
         discard;
     }
 
     float eps = 0.05;
-    float h = waterHeight(frag_pos.xz, u_time);
-    float hx = waterHeight(frag_pos.xz + vec2(eps, 0.0), u_time);
-    float hz = waterHeight(frag_pos.xz + vec2(0.0, eps), u_time);
+    float h = waterHeight(visible_pos.xz, u_time);
+    float hx = waterHeight(visible_pos.xz + vec2(eps, 0.0), u_time);
+    float hz = waterHeight(visible_pos.xz + vec2(0.0, eps), u_time);
     vec3 surface_normal = normalize(vec3(-(hx - h) / eps, 1.0, -(hz - h) / eps));
-    vec3 surface_point = vec3(frag_pos.x, surface_y, frag_pos.z);
+    vec3 surface_point = vec3(visible_pos.x, surface_y, visible_pos.z);
 
     float denom = dot(ray_dir, surface_normal);
     if (abs(denom) > 0.0001) {
@@ -157,10 +183,10 @@ void main() {
     float path_len = exit_t - enter_t;
     vec3 sigma = vec3(1.65, 0.95, 0.55) * u_absorption;
     vec3 transmittance = exp(-sigma * path_len);
-    float alpha = clamp(1.0 - dot(transmittance, vec3(0.333333)), 0.0, 0.72);
+    float alpha = clamp(1.0 - dot(transmittance, vec3(0.333333)), 0.0, 0.68);
 
     float water_height = max(surface_y - u_box_min.y, 0.0001);
-    float surface_fade = smoothstep(0.0, 1.0, clamp((frag_pos.y - u_box_min.y) / water_height, 0.0, 1.0));
+    float surface_fade = smoothstep(0.0, 1.0, clamp((visible_pos.y - u_box_min.y) / water_height, 0.0, 1.0));
     float depth_factor = 1.0 - surface_fade;
     vec3 shallow_color = u_water_color * 1.18 + vec3(0.02, 0.05, 0.07);
     vec3 deep_color = u_water_color * vec3(0.55, 0.68, 0.92);

@@ -49,6 +49,34 @@ class SkyboxVBO(BaseVBO):
         return np.array(data, dtype='f4').reshape(-1, 3)
 
 
+# ── Position-Only Cube ────────────────────────────────────────────────────────
+class CubePositionVBO(BaseVBO):
+    format = '3f'
+    attribs = ['in_position']
+
+    def get_vertex_data(self):
+        data = [
+            -1,  1, -1, -1, -1, -1,  1, -1, -1,
+             1, -1, -1,  1,  1, -1, -1,  1, -1,
+
+            -1, -1,  1, -1, -1, -1, -1,  1, -1,
+            -1,  1, -1, -1,  1,  1, -1, -1,  1,
+
+             1, -1, -1,  1, -1,  1,  1,  1,  1,
+             1,  1,  1,  1,  1, -1,  1, -1, -1,
+
+            -1, -1,  1, -1,  1,  1,  1,  1,  1,
+             1,  1,  1,  1, -1,  1, -1, -1,  1,
+
+            -1,  1, -1,  1,  1, -1,  1,  1,  1,
+             1,  1,  1, -1,  1,  1, -1,  1, -1,
+
+            -1, -1, -1, -1, -1,  1,  1, -1, -1,
+             1, -1, -1, -1, -1,  1,  1, -1,  1,
+        ]
+        return np.array(data, dtype='f4').reshape(-1, 3)
+
+
 # ── Cube ──────────────────────────────────────────────────────────────────────
 class CubeVBO(BaseVBO):
     def get_vertex_data(self):
@@ -85,6 +113,46 @@ class PlaneVBO(BaseVBO):
             for i in tri:
                 data.extend((0,1,0)); data.extend(pos[i])
         return np.array(data, dtype='f4').reshape(-1, 6)
+
+
+class SandGridVBO(BaseVBO):
+    format = '2f 3f'
+    attribs = ['in_uv', 'in_position']
+
+    def __init__(self, ctx, subdivisions=128, size=1.0):
+        self.subdivisions = subdivisions
+        self.size = size
+        super().__init__(ctx)
+
+    def get_vertex_data(self):
+        n = self.subdivisions
+        s = self.size
+        data = []
+
+        def emit(px, pz, u, v):
+            data.extend((u, v))
+            data.extend((px, 0.0, pz))
+
+        for iz in range(n):
+            z0 = -s + 2.0 * s * iz / n
+            z1 = -s + 2.0 * s * (iz + 1) / n
+            v0 = iz / n
+            v1 = (iz + 1) / n
+            for ix in range(n):
+                x0 = -s + 2.0 * s * ix / n
+                x1 = -s + 2.0 * s * (ix + 1) / n
+                u0 = ix / n
+                u1 = (ix + 1) / n
+
+                emit(x0, z0, u0, v0)
+                emit(x1, z1, u1, v1)
+                emit(x1, z0, u1, v0)
+
+                emit(x0, z0, u0, v0)
+                emit(x0, z1, u0, v1)
+                emit(x1, z1, u1, v1)
+
+        return np.array(data, dtype='f4').reshape(-1, 5)
 
 
 # ── Sphere ────────────────────────────────────────────────────────────────────
@@ -756,8 +824,10 @@ class VBO:
     def __init__(self, ctx):
         self.vbos = {
             'skybox':        SkyboxVBO(ctx),
+            'cube_pos':      CubePositionVBO(ctx),
             'cube':          CubeVBO(ctx),
             'plane':         PlaneVBO(ctx, size=1.0),
+            'sand_grid':     SandGridVBO(ctx, subdivisions=128, size=5.0),
             'sphere':        SphereVBO(ctx, stacks=8, slices=12),
             'sphere_tiny':   SphereVBO(ctx, stacks=5, slices=8),
             'cylinder':      CylinderVBO(ctx, segments=10, height=1.0, radius=1.0),

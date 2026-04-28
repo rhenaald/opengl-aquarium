@@ -146,11 +146,27 @@ class GlueSeam(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class SandFloor(BaseModel):
-    def __init__(self, app, pos=(0,0,0), scale=(1,1,1)):
+    def __init__(self, app, pos=(0,0,0), scale=(1,1,1), half_extent=(5.0, 5.0)):
         super().__init__(app, 'sand_floor', pos, (0,0,0), scale)
+        self.half_extent = glm.vec2(half_extent)
 
     def render(self):
         self._upload_common()
+        sand = self.app.renderer.sand_material
+        self.program['u_albedo_map'].value = 0
+        self.program['u_normal_map'].value = 1
+        self.program['u_roughness_map'].value = 2
+        self.program['u_height_map'].value = 3
+        _set(self.program, 'u_sand_tile', glm.vec2(6.0, 6.0))
+        _set(self.program, 'u_disp_strength', 0.035)
+        _set(self.program, 'u_ripple_strength', 0.030)
+        _set(self.program, 'u_normal_strength', 0.8)
+        _set(self.program, 'u_micro_normal_strength', 0.3)
+        _set(self.program, 'u_floor_half_extent', self.half_extent)
+        sand['albedo'].use(location=0)
+        sand['normal'].use(location=1)
+        sand['roughness'].use(location=2)
+        sand['height'].use(location=3)
         self.vao.render()
 
 

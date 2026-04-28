@@ -20,6 +20,7 @@ class WaterVolume:
         self.program['m_model'].write(self.m_model)
         self.program['u_box_min'].write(self.box_min)
         self.program['u_box_max'].write(self.box_max)
+        self.program['u_scene_depth'].value = 0
 
     def render(self):
         surface = self.app.scene.water_surface
@@ -32,4 +33,8 @@ class WaterVolume:
         self.program['u_wave_frequency'].value = self.sim.wave_frequency
         self.program['u_wave_speed'].value = self.sim.wave_speed
         self.program['u_time'].value = self.app.time
+        self.program['u_viewport_size'].write(glm.vec2(self.app.WIN_SIZE))
+        inv_view_proj = glm.inverse(self.camera.m_proj * self.camera.m_view)
+        self.program['u_inv_view_proj'].write(inv_view_proj)
+        self.app.renderer.scene_depth.use(location=0)
         self.vao.render()
