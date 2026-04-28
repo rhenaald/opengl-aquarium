@@ -4,6 +4,7 @@ Entry point and main engine loop.
 """
 
 import sys
+import numpy as np
 import pygame as pg
 import moderngl as mgl
 
@@ -14,6 +15,7 @@ from src.objects.scene import AquariumScene
 from src.renderer import AquariumRenderer
 from input_handler import InputHandler
 from simulation import SimulationState
+from src.components.hud import HUD
 
 class AquariumEngine:
     WIN_SIZE = (1280, 720)
@@ -48,8 +50,63 @@ class AquariumEngine:
         self.scene    = AquariumScene(self)
         self.input    = InputHandler(self)
         self.renderer = AquariumRenderer(self)
+        self.hud      = HUD(self)
+
+        self._init_hud_overlay()
 
         print(self._controls_text())
+
+    def _init_hud_overlay(self):
+        self.hud_surface = pg.Surface(self.WIN_SIZE, pg.SRCALPHA)
+        self.hud_texture = self.ctx.texture(self.WIN_SIZE, 4, alignment=1)
+        self.hud_texture.filter = (mgl.NEAREST, mgl.NEAREST)
+
+        self.hud_program = self.ctx.program(
+            vertex_shader='''
+                #version 330
+                in vec2 in_pos;
+                in vec2 in_uv;
+                out vec2 v_uv;
+                void main() {
+                    gl_Position = vec4(in_pos, 0.0, 1.0);
+                    v_uv = in_uv;
+                }
+            ''',
+            fragment_shader='''
+                #version 330
+                uniform sampler2D u_texture;
+                in vec2 v_uv;
+                out vec4 f_color;
+                void main() {
+                    f_color = texture(u_texture, v_uv);
+                }
+            ''',
+        )
+        self.hud_program['u_texture'].value = 0
+
+        quad_data = np.array([
+            -1.0,  1.0, 0.0, 1.0,
+             1.0,  1.0, 1.0, 1.0,
+            -1.0, -1.0, 0.0, 0.0,
+             1.0, -1.0, 1.0, 0.0,
+        ], dtype='f4')
+
+        self.hud_vbo = self.ctx.buffer(quad_data.tobytes())
+        self.hud_vao = self.ctx.vertex_array(
+            self.hud_program,
+            [(self.hud_vbo, '2f 2f', 'in_pos', 'in_uv')]
+        )
+
+    def _render_hud_overlay(self):
+        self.hud_surface.fill((0, 0, 0, 0))
+        self.hud.render(self.hud_surface)
+        pixels = pg.image.tostring(self.hud_surface, 'RGBA', False)
+        self.hud_texture.write(pixels)
+
+        self.ctx.enable_only(self.ctx.BLEND)
+        self.ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
+        self.hud_texture.use(location=0)
+        self.hud_vao.render(mode=mgl.TRIANGLE_STRIP)
 
     def _controls_text(self):
         return (
@@ -84,10 +141,9 @@ class AquariumEngine:
         self.camera.update()
 
     def render(self):
-        # ── 3D scene ─────────────────────────────────────────────────
         self.ctx.clear(color=(0.02, 0.06, 0.12, 1.0))
         self.renderer.render()
-
+        self._render_hud_overlay()
         pg.display.flip()
 
     def quit(self):

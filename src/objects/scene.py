@@ -33,6 +33,16 @@ class AquariumScene:
         self._spawn_initial_fish()
         self._spawn_initial_bubbles()
 
+    @property
+    def objects(self):
+        """Return a live list of all scene objects for HUD / debug introspection."""
+        return [
+            *self.static_opaque,
+            *self.glass_panels,
+            *self.fish,
+            *self.bubbles,
+        ]
+
     # ──────────────────────────────────────────────────────────────────
     #  Build
     # ──────────────────────────────────────────────────────────────────
