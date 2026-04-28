@@ -1,9 +1,12 @@
 """
 AquariumRenderer - renders the scene in correct order:
-  1. Opaque objects (sand, rocks, coral, seaweed, fish)
-  2. Transparent / additive objects sorted back-to-front (bubbles)
-  3. Glass panels (depth-write off, blended)
+  1. Skybox background
+  2. Opaque objects (sand, rocks, coral, seaweed, fish)
+  3. Transparent / additive objects sorted back-to-front (bubbles)
+  4. Glass panels (depth-write off, blended)
 """
+
+from src.objects.skybox import Skybox
 
 
 class AquariumRenderer:
@@ -11,20 +14,25 @@ class AquariumRenderer:
         self.app   = app
         self.ctx   = app.ctx
         self.scene = app.scene
+        self.skybox = Skybox(app)
 
     def render(self):
         scene = self.scene
         ctx   = self.ctx
         cam   = self.app.camera
 
-        # ── 1. Opaque pass ─────────────────────────────────────────────
+        # ── 1. Skybox background ───────────────────────────────────────
+        ctx.enable_only(0)
+        self.skybox.render()
+
+        # ── 2. Opaque pass ─────────────────────────────────────────────
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.CULL_FACE)
         for obj in scene.static_opaque:
             obj.render()
         for f in scene.fish:
             f.render()
 
-        # ── 2. Bubbles — transparent, no back-face culling ─────────────
+        # ── 3. Bubbles — transparent, no back-face culling ─────────────
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
         ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
 
@@ -38,7 +46,7 @@ class AquariumRenderer:
         for b in sorted_bubbles:
             b.render()
 
-        # ── 3. Glass panels — transparent, no culling, depth-write off ─
+        # ── 4. Glass panels — transparent, no culling, depth-write off ─
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
         ctx.depth_func = '<='   # LEQUAL
 
@@ -55,4 +63,4 @@ class AquariumRenderer:
         ctx.depth_func = '<'    # LESS
 
     def destroy(self):
-        pass
+        self.skybox.destroy()
