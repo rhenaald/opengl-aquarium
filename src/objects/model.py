@@ -5,6 +5,7 @@ Hierarchy:
   BaseModel          - common init, matrix helpers, uniform upload
   ├── SolidModel     - opaque Phong shading (rocks, coral base, etc.)
   ├── GlassPanel     - semi-transparent tank wall
+  ├── GlueSeam       - translucent silicone-like corner joint
   ├── SandFloor      - sand with caustic
   ├── Seaweed        - animated swaying cylinder
   ├── Fish           - animated swimming ellipsoid
@@ -67,6 +68,12 @@ class BaseModel:
         wc = self.sim.water_color
         _set(p, 'u_water_color', glm.vec3(wc))
         _set(p, 'u_fog_density', 1.0)
+        _set(p, 'u_sun_pos', glm.vec3(0.0, 9.0, -2.5))
+        _set(p, 'u_sun_dir', glm.normalize(glm.vec3(0.0, -1.0, 0.22)))
+        _set(p, 'u_sun_cutoff', math.cos(math.radians(34.0)))
+        _set(p, 'u_water_surface_y', 6.0)
+        _set(p, 'u_caustic_strength', 0.35 * self.sim.light_intensity)
+        _set(p, 'u_caustic_speed', self.sim.caustic_speed)
 
     def update(self, dt, t): pass
 
@@ -98,8 +105,8 @@ class SolidModel(BaseModel):
 
 class GlassPanel(BaseModel):
     def __init__(self, app, pos=(0,0,0), rot=(0,0,0), scale=(1,1,1),
-                 tint=(0.55, 0.75, 0.80), alpha=0.10):
-        super().__init__(app, 'tank_wall', pos, rot, scale)
+                 tint=(0.55, 0.75, 0.80), alpha=0.10, vao_name='tank_wall'):
+        super().__init__(app, vao_name, pos, rot, scale)
         self.tint  = glm.vec3(tint)
         self.alpha = alpha
 
@@ -107,6 +114,30 @@ class GlassPanel(BaseModel):
         self._upload_common()
         _set(self.program, 'u_tint',  self.tint)
         _set(self.program, 'u_alpha', self.alpha)
+        _set(self.program, 'u_ior', 1.5)
+        _set(self.program, 'u_thickness', 0.08)
+        _set(self.program, 'u_absorption_color', glm.vec3(0.10, 0.045, 0.025))
+        _set(self.program, 'u_refraction_strength', 0.018)
+        _set(self.program, 'u_reflection_strength', 0.35)
+        self.vao.render()
+
+
+class GlueSeam(BaseModel):
+    def __init__(self, app, pos=(0,0,0), scale=(1,1,1),
+                 tint=(0.70, 0.90, 0.95), alpha=0.18):
+        super().__init__(app, 'glass_cube', pos, (0,0,0), scale)
+        self.tint = glm.vec3(tint)
+        self.alpha = alpha
+
+    def render(self):
+        self._upload_common()
+        _set(self.program, 'u_tint', self.tint)
+        _set(self.program, 'u_alpha', self.alpha)
+        _set(self.program, 'u_ior', 1.5)
+        _set(self.program, 'u_thickness', 0.12)
+        _set(self.program, 'u_absorption_color', glm.vec3(0.06, 0.035, 0.02))
+        _set(self.program, 'u_refraction_strength', 0.010)
+        _set(self.program, 'u_reflection_strength', 0.20)
         self.vao.render()
 
 

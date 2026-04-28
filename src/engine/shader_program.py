@@ -4,6 +4,7 @@ ShaderProgram - loads and manages all GLSL shader programs.
 Programs:
   - phong_color   : standard Phong shading with solid color + wave distortion uniform
   - skybox       : cubemap background
+  - water_volume : Beer-Lambert water absorption overlay
   - bubble        : transparent sphere with Fresnel rim
   - glass         : semi-transparent with tint
   - sand          : Phong + sandy color variation via noise-like gradient
@@ -16,15 +17,17 @@ import os
 class ShaderProgram:
     def __init__(self, ctx):
         self.ctx = ctx
-        shader_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'shaders')
+        shader_dir = os.path.join(os.path.dirname(
+            __file__), '..', '..', 'shaders')
         self.programs = {
-            'skybox':         self._load(shader_dir, 'skybox'),
-            'phong_color':    self._load(shader_dir, 'phong_color'),
-            'bubble':         self._load(shader_dir, 'bubble'),
-            'glass':          self._load(shader_dir, 'glass'),
-            'sand':           self._load(shader_dir, 'sand'),
-            'fish':           self._load(shader_dir, 'fish'),
-            'seaweed':        self._load(shader_dir, 'seaweed'),
+            'skybox':      self._load(shader_dir, 'skybox'),
+            'water_volume': self._load(shader_dir, 'water_volume'),
+            'phong_color': self._load(shader_dir, 'phong_color'),
+            'bubble':      self._load(shader_dir, 'bubble'),
+            'glass':       self._load(shader_dir, 'glass'),
+            'sand':        self._load(shader_dir, 'sand'),
+            'fish':        self._load(shader_dir, 'fish'),
+            'seaweed':     self._load(shader_dir, 'seaweed'),
             'water_surface':  self._load(shader_dir, 'water_surface'),
         }
 

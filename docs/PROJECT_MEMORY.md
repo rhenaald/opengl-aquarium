@@ -1,7 +1,7 @@
 # Project Memory
 
 ## Project
-OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, PyGLM, NumPy. Entry `main.py`. Opens 1280x720 OpenGL 3.3 core window. Renders 3D fish tank: sand, rocks, coral, seaweed, fish, bubbles, glass walls, lighting, camera modes, Pygame HUD overlay.
+OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, PyGLM, NumPy. Entry `main.py`. Opens 1280x720 OpenGL 3.3 core window. Renders 3D fish tank: sand, rocks, coral, seaweed, fish, bubbles, glass walls, skybox, water volume fog, projected caustics, lighting, camera modes, Pygame HUD overlay.
 
 ## Commands
 - Install deps: `uv sync` or `pip install -r requirements.txt`.
@@ -14,10 +14,12 @@ OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, Py
 
 ## Architecture
 - `main.py` owns `AquariumEngine`, window/context setup, frame loop, HUD overlay texture, lifecycle.
-- `src/renderer.py` render passes: opaque first, transparent bubbles back-to-front second, glass panels back-to-front last.
+- `src/renderer.py` render passes: skybox first, opaque scene next, water volume overlay, transparent bubbles back-to-front, glass panels back-to-front last.
 - `src/objects/scene.py` builds tank, decorations, initial fish/bubbles, runtime spawn/update.
 - `src/objects/model.py` renderable models: `BaseModel`, `SolidModel`, `GlassPanel`, `SandFloor`, `Seaweed`, `Fish`, `Bubble`.
-- `src/engine/vbo.py` builds procedural meshes: cube, plane, sphere, cylinder, glass panel, fish body.
+- `src/objects/skybox.py` loads cubemap faces from `assets/materials/skybox/sky_10_cubemap_2k/` and renders the background skybox.
+- `src/objects/water_volume.py` renders tank-sized Beer-Lambert absorption volume.
+- `src/engine/vbo.py` builds procedural meshes: skybox cube, cube, plane, sphere, cylinder, glass panel, fish body.
 - `src/engine/vao.py` maps VBOs to shader programs + model VAO names.
 - `src/engine/shader_program.py` loads GLSL from `shaders/`.
 - `src/engine/simulation.py` stores mutable sim state: pause, wave speed, bubble count, light intensity, water preset, fish target, caustic speed.
@@ -54,6 +56,8 @@ OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, Py
 
 ## Rendering Notes
 - Opaque pass uses depth test + cull face.
+- Skybox renders before scene with cubemap sampler and view translation stripped.
+- Water volume renders as translucent tank cube with Beer-Lambert absorption tint.
 - Bubble pass uses depth test + alpha blend, culling disabled.
 - Glass pass uses depth test + alpha blend, `depth_func` temporarily `<=`.
 - Transparent objects sorted by squared camera distance, farthest first via negative distance key.
@@ -68,7 +72,8 @@ OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, Py
 
 ## Shader Notes
 - Shader files live in `shaders/`.
-- Loaded programs: `phong_color`, `bubble`, `glass`, `sand`, `fish`, `seaweed`.
+- Loaded programs: `skybox`, `water_volume`, `phong_color`, `bubble`, `glass`, `sand`, `fish`, `seaweed`.
+- Opaque shaders now use projected distorted Voronoi caustics with sun spotlight fade and depth falloff.
 - New renderable type usually needs VBO entry, VAO entry, shader program entry if new shader, model class or scene spawn.
 
 ## HUD Notes

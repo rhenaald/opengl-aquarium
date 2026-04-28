@@ -5,7 +5,7 @@ runtime lists of fish and bubbles.
 
 import random
 import math
-from src.objects.model import SolidModel, GlassPanel, SandFloor, Seaweed, Fish, Bubble, WaterSurface
+from src.objects.model import SolidModel, GlassPanel, GlueSeam, SandFloor, Seaweed, Fish, Bubble, WaterSurface
 
 
 # Tank dimensions (half-extents)
@@ -13,6 +13,7 @@ TANK_W = 5.0   # X half-width
 TANK_H = 6.0   # full height
 TANK_D = 5.0   # Z half-depth
 WALL_T = 0.12  # glass thickness
+WATER_SURFACE_DIFFERENCE = 2  # the distance between water surface and tank height
 
 
 class AquariumScene:
@@ -20,10 +21,10 @@ class AquariumScene:
         self.app = app
 
         # Object lists
-        self.static_opaque      = []  # rocks, coral, sand, seaweed
-        self.glass_panels       = []  # semi-transparent walls
-        self.fish               = []
-        self.bubbles            = []
+        self.static_opaque = []  # rocks, coral, sand, seaweed
+        self.glass_panels = []  # semi-transparent walls
+        self.fish = []
+        self.bubbles = []
 
         # Water surface (animated)
         self.water_surface = WaterSurface(app, water_y=5.4)
@@ -54,71 +55,89 @@ class AquariumScene:
     def _build_tank(self):
         app = self.app
         W, H, D = TANK_W, TANK_H, TANK_D
+        wall_height = H + WATER_SURFACE_DIFFERENCE
+        wall_half_h = wall_height * 0.5
+        wall_center_y = wall_half_h
 
         # --- Sand floor ---
         self.static_opaque.append(
             SandFloor(app, pos=(0, 0, 0), scale=(W, 1, D))
         )
 
-        # --- Tank frame corners (dark metal look) ---
-        frame_color = (0.12, 0.12, 0.14)
-        pillar_r    = 0.12
-        for sx in (-1, 1):
-            for sz in (-1, 1):
-                self.static_opaque.append(SolidModel(
-                    app, 'solid_cube',
-                    pos=(sx * W, H * 0.5, sz * D),
-                    scale=(pillar_r, H * 0.5, pillar_r),
-                    color=frame_color
-                ))
-        # Top & bottom rim bars
-        for sy in (0.06, H - 0.06):
-            # X bars
-            for sz in (-1, 1):
-                self.static_opaque.append(SolidModel(
-                    app, 'solid_cube',
-                    pos=(0, sy, sz * D),
-                    scale=(W, pillar_r, pillar_r),
-                    color=frame_color
-                ))
-            # Z bars
-            for sx in (-1, 1):
-                self.static_opaque.append(SolidModel(
-                    app, 'solid_cube',
-                    pos=(sx * W, sy, 0),
-                    scale=(pillar_r, pillar_r, D),
-                    color=frame_color
-                ))
-
         # --- Glass walls ---
-        glass_tint  = (0.55, 0.78, 0.82)
+        glass_tint = (0.55, 0.78, 0.82)
         glass_alpha = 0.08
 
         def add_glass(pos, rot, scale):
             self.glass_panels.append(
-                GlassPanel(app, pos=pos, rot=rot, scale=scale, tint=glass_tint, alpha=glass_alpha)
+                GlassPanel(app, pos=pos, rot=rot, scale=scale,
+                           tint=glass_tint, alpha=glass_alpha, vao_name='glass_cube')
             )
 
         # Front (Z+)
-        add_glass(pos=(0, H*0.5, D),  rot=(0, 0, 0),   scale=(W, H*0.5, 1))
+        add_glass(pos=(0, wall_center_y, D),  rot=(0, 0, 0),
+                  scale=(W, wall_half_h, WALL_T * 0.5))
         # Back (Z-)
-        add_glass(pos=(0, H*0.5, -D), rot=(0, 180, 0),  scale=(W, H*0.5, 1))
+        add_glass(pos=(0, wall_center_y, -D), rot=(0, 180, 0),
+                  scale=(W, wall_half_h, WALL_T * 0.5))
         # Left (X-)
-        add_glass(pos=(-W, H*0.5, 0), rot=(0, -90, 0),  scale=(D, H*0.5, 1))
+        add_glass(pos=(-W, wall_center_y, 0), rot=(0, 0, 0),
+                  scale=(WALL_T * 0.5, wall_half_h, D))
         # Right (X+)
-        add_glass(pos=(W, H*0.5, 0),  rot=(0,  90, 0),  scale=(D, H*0.5, 1))
+        add_glass(pos=(W, wall_center_y, 0),  rot=(0, 0, 0),
+                  scale=(WALL_T * 0.5, wall_half_h, D))
+
+        # --- Transparent glue seams at direct glass-to-glass joins ---
+        seam_r = 0.035
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                self.glass_panels.append(GlueSeam(
+                    app,
+                    pos=(sx * W, wall_center_y, sz * D),
+                    scale=(seam_r, wall_half_h, seam_r),
+                    tint=(0.70, 0.90, 0.95),
+                    alpha=0.18,
+                ))
+
+        # --- Subtle glass edge beads for stronger edge visibility ---
+        edge_r = 0.028
+        edge_tint = (0.68, 0.88, 0.94)
+        edge_alpha = 0.14
+        for y in (0.0, wall_height):
+            for z in (-D, D):
+                self.glass_panels.append(GlueSeam(
+                    app,
+                    pos=(0, y, z),
+                    scale=(W, edge_r, edge_r),
+                    tint=edge_tint,
+                    alpha=edge_alpha,
+                ))
+            for x in (-W, W):
+                self.glass_panels.append(GlueSeam(
+                    app,
+                    pos=(x, y, 0),
+                    scale=(edge_r, edge_r, D),
+                    tint=edge_tint,
+                    alpha=edge_alpha,
+                ))
 
     def _build_decorations(self):
         app = self.app
 
         # --- Rocks ---
         rock_configs = [
-            dict(pos=(-3.2, 0.35, -2.8), scale=(0.55, 0.40, 0.45), rot=(0,  25, 0), color=(0.38, 0.34, 0.30)),
-            dict(pos=(-3.0, 0.18, -2.5), scale=(0.30, 0.22, 0.28), rot=(0,  70, 0), color=(0.32, 0.29, 0.26)),
-            dict(pos=( 3.5, 0.30, -3.2), scale=(0.50, 0.35, 0.40), rot=(0, 130, 0), color=(0.40, 0.36, 0.32)),
-            dict(pos=( 3.2, 0.45, -2.8), scale=(0.65, 0.50, 0.55), rot=(0, 200, 0), color=(0.35, 0.31, 0.28)),
-            dict(pos=( 0.5, 0.22,  3.8), scale=(0.42, 0.30, 0.38), rot=(0,  45, 0), color=(0.42, 0.38, 0.34)),
-            dict(pos=(-1.0, 0.18,  3.6), scale=(0.28, 0.20, 0.24), rot=(0,  90, 0), color=(0.36, 0.32, 0.28)),
+            dict(pos=(-3.2, 0.35, -2.8), scale=(0.55, 0.40, 0.45),
+                 rot=(0,  25, 0), color=(0.38, 0.34, 0.30)),
+            dict(pos=(-3.0, 0.18, -2.5), scale=(0.30, 0.22, 0.28),
+                 rot=(0,  70, 0), color=(0.32, 0.29, 0.26)),
+            dict(pos=(3.5, 0.30, -3.2), scale=(0.50, 0.35, 0.40),
+                 rot=(0, 130, 0), color=(0.40, 0.36, 0.32)),
+            dict(pos=(3.2, 0.45, -2.8), scale=(0.65, 0.50, 0.55),
+                 rot=(0, 200, 0), color=(0.35, 0.31, 0.28)),
+            dict(pos=(0.5, 0.22,  3.8), scale=(0.42, 0.30, 0.38),
+                 rot=(0,  45, 0), color=(0.42, 0.38, 0.34)),
+            dict(pos=(-1.0, 0.18,  3.6), scale=(0.28, 0.20, 0.24),
+                 rot=(0,  90, 0), color=(0.36, 0.32, 0.28)),
         ]
         for cfg in rock_configs:
             self.static_opaque.append(SolidModel(
@@ -129,12 +148,18 @@ class AquariumScene:
 
         # --- Coral columns ---
         coral_configs = [
-            dict(pos=(-2.5, 1.0, -3.5), scale=(0.18, 1.0, 0.18), color=(0.95, 0.35, 0.25)),
-            dict(pos=(-2.3, 0.7, -3.3), scale=(0.12, 0.7, 0.12), color=(0.95, 0.60, 0.20)),
-            dict(pos=(-2.7, 0.6, -3.2), scale=(0.10, 0.55, 0.10), color=(1.00, 0.80, 0.10)),
-            dict(pos=( 3.2, 1.2, -2.5), scale=(0.20, 1.2, 0.20), color=(0.90, 0.25, 0.50)),
-            dict(pos=( 3.0, 0.8, -2.2), scale=(0.14, 0.8, 0.14), color=(0.80, 0.20, 0.70)),
-            dict(pos=( 0.0, 0.9,  4.0), scale=(0.16, 0.9, 0.16), color=(1.00, 0.55, 0.10)),
+            dict(pos=(-2.5, 1.0, -3.5), scale=(0.18, 1.0, 0.18),
+                 color=(0.95, 0.35, 0.25)),
+            dict(pos=(-2.3, 0.7, -3.3), scale=(0.12, 0.7, 0.12),
+                 color=(0.95, 0.60, 0.20)),
+            dict(pos=(-2.7, 0.6, -3.2), scale=(0.10, 0.55, 0.10),
+                 color=(1.00, 0.80, 0.10)),
+            dict(pos=(3.2, 1.2, -2.5), scale=(0.20, 1.2, 0.20),
+                 color=(0.90, 0.25, 0.50)),
+            dict(pos=(3.0, 0.8, -2.2), scale=(0.14, 0.8, 0.14),
+                 color=(0.80, 0.20, 0.70)),
+            dict(pos=(0.0, 0.9,  4.0), scale=(
+                0.16, 0.9, 0.16), color=(1.00, 0.55, 0.10)),
         ]
         for cfg in coral_configs:
             self.static_opaque.append(SolidModel(
@@ -146,10 +171,10 @@ class AquariumScene:
         # --- Seaweed clusters ---
         seaweed_positions = [
             (-1.5, 0.0, -4.2), (-1.2, 0.0, -4.0), (-1.8, 0.0, -3.8),
-            ( 2.0, 0.0, -4.0), ( 2.3, 0.0, -3.8),
+            (2.0, 0.0, -4.0), (2.3, 0.0, -3.8),
             (-4.0, 0.0,  1.5), (-3.8, 0.0,  1.2), (-4.2, 0.0,  1.8),
-            ( 4.0, 0.0,  2.0), ( 3.8, 0.0,  2.3),
-            ( 0.5, 0.0,  4.2), ( 0.2, 0.0,  4.0),
+            (4.0, 0.0,  2.0), (3.8, 0.0,  2.3),
+            (0.5, 0.0,  4.2), (0.2, 0.0,  4.0),
         ]
         for i, (x, y, z) in enumerate(seaweed_positions):
             h = random.uniform(1.2, 2.8)
