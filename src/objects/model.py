@@ -5,6 +5,7 @@ Hierarchy:
   BaseModel          - common init, matrix helpers, uniform upload
   ├── SolidModel     - opaque Phong shading (rocks, coral base, etc.)
   ├── GlassPanel     - semi-transparent tank wall
+  ├── GlueSeam       - translucent silicone-like corner joint
   ├── SandFloor      - sand with caustic
   ├── Seaweed        - animated swaying cylinder
   ├── Fish           - animated swimming ellipsoid
@@ -118,6 +119,25 @@ class GlassPanel(BaseModel):
         _set(self.program, 'u_absorption_color', glm.vec3(0.10, 0.045, 0.025))
         _set(self.program, 'u_refraction_strength', 0.018)
         _set(self.program, 'u_reflection_strength', 0.35)
+        self.vao.render()
+
+
+class GlueSeam(BaseModel):
+    def __init__(self, app, pos=(0,0,0), scale=(1,1,1),
+                 tint=(0.70, 0.90, 0.95), alpha=0.18):
+        super().__init__(app, 'glass_cube', pos, (0,0,0), scale)
+        self.tint = glm.vec3(tint)
+        self.alpha = alpha
+
+    def render(self):
+        self._upload_common()
+        _set(self.program, 'u_tint', self.tint)
+        _set(self.program, 'u_alpha', self.alpha)
+        _set(self.program, 'u_ior', 1.5)
+        _set(self.program, 'u_thickness', 0.12)
+        _set(self.program, 'u_absorption_color', glm.vec3(0.06, 0.035, 0.02))
+        _set(self.program, 'u_refraction_strength', 0.010)
+        _set(self.program, 'u_reflection_strength', 0.20)
         self.vao.render()
 
 
