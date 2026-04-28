@@ -16,6 +16,7 @@ class VAO:
             return ctx.vertex_array(prog, [(vbo.vbo, vbo.format, *vbo.attribs)])
 
         self.vaos = {
+            'skybox':       make('skybox',      'skybox'),
             'tank_wall':    make('glass',       'glass_panel'),
             'sand_floor':   make('sand',         'plane'),
             'rock':         make('phong_color',  'cube'),

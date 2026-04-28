@@ -22,6 +22,34 @@ class BaseVBO:
         self.vbo.release()
 
 
+# ── Skybox Cube ───────────────────────────────────────────────────────────────
+class SkyboxVBO(BaseVBO):
+    format = '3f'
+    attribs = ['in_position']
+
+    def get_vertex_data(self):
+        data = [
+            -1,  1, -1, -1, -1, -1,  1, -1, -1,
+             1, -1, -1,  1,  1, -1, -1,  1, -1,
+
+            -1, -1,  1, -1, -1, -1, -1,  1, -1,
+            -1,  1, -1, -1,  1,  1, -1, -1,  1,
+
+             1, -1, -1,  1, -1,  1,  1,  1,  1,
+             1,  1,  1,  1,  1, -1,  1, -1, -1,
+
+            -1, -1,  1, -1,  1,  1,  1,  1,  1,
+             1,  1,  1,  1, -1,  1, -1, -1,  1,
+
+            -1,  1, -1,  1,  1, -1,  1,  1,  1,
+             1,  1,  1, -1,  1,  1, -1,  1, -1,
+
+            -1, -1, -1, -1, -1,  1,  1, -1, -1,
+             1, -1, -1, -1, -1,  1,  1, -1,  1,
+        ]
+        return np.array(data, dtype='f4').reshape(-1, 3)
+
+
 # ── Cube ──────────────────────────────────────────────────────────────────────
 class CubeVBO(BaseVBO):
     def get_vertex_data(self):
@@ -221,6 +249,7 @@ class FishBodyVBO(BaseVBO):
 class VBO:
     def __init__(self, ctx):
         self.vbos = {
+            'skybox':      SkyboxVBO(ctx),
             'cube':        CubeVBO(ctx),
             'plane':       PlaneVBO(ctx, size=1.0),
             'sphere':      SphereVBO(ctx, stacks=8, slices=12),

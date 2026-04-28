@@ -3,6 +3,7 @@ ShaderProgram - loads and manages all GLSL shader programs.
 
 Programs:
   - phong_color   : standard Phong shading with solid color + wave distortion uniform
+  - skybox       : cubemap background
   - bubble        : transparent sphere with Fresnel rim
   - glass         : semi-transparent with tint
   - sand          : Phong + sandy color variation via noise-like gradient
@@ -19,6 +20,7 @@ class ShaderProgram:
         shader_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'shaders')
         # Hasil: aquarium-opengl/shaders  ← folder yang benar!
         self.programs = {
+            'skybox':      self._load(shader_dir, 'skybox'),
             'phong_color': self._load(shader_dir, 'phong_color'),
             'bubble':      self._load(shader_dir, 'bubble'),
             'glass':       self._load(shader_dir, 'glass'),
