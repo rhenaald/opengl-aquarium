@@ -74,6 +74,7 @@ void main() {
 
     float cos_theta = clamp(dot(N, V), 0.0, 1.0);
     float fresnel = schlick_fresnel(cos_theta, u_ior);
+    float edge_fresnel = pow(1.0 - cos_theta, 1.8);
     float spec = pow(max(dot(V, R), 0.0), 96.0);
     vec3 absorption = exp(-u_absorption_color * max(u_thickness, 0.0));
     vec3 transmitted = refracted * absorption;
@@ -81,8 +82,8 @@ void main() {
 
     vec3 color = mix(transmitted, reflected, clamp(fresnel * u_reflection_strength * 2.5, 0.0, 0.85));
     color += vec3(0.9, 0.96, 1.0) * spec * 0.45;
-    color += u_tint * 0.035;
+    color += u_tint * (0.035 + edge_fresnel * 0.14);
 
-    float alpha = clamp(u_alpha + fresnel * 0.34 + spec * 0.18 + abs(imperfection_delta) * 0.08, 0.06, 0.48);
+    float alpha = clamp(u_alpha + edge_fresnel * 0.42 + spec * 0.18 + abs(imperfection_delta) * 0.08, 0.08, 0.62);
     fragColor = vec4(color, alpha);
 }

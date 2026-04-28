@@ -39,6 +39,12 @@ void main() {
     vec3 transmittance = exp(-sigma * path_len);
     float alpha = clamp(1.0 - dot(transmittance, vec3(0.333333)), 0.0, 0.72);
 
-    vec3 absorbed_color = mix(u_water_color * 0.75, u_water_color * 1.35, 1.0 - transmittance);
+    float surface_fade = smoothstep(u_box_min.y, u_box_max.y, frag_pos.y);
+    float depth_factor = 1.0 - surface_fade;
+    vec3 shallow_color = u_water_color * 1.18 + vec3(0.02, 0.05, 0.07);
+    vec3 deep_color = u_water_color * vec3(0.55, 0.68, 0.92);
+    vec3 vertical_color = mix(deep_color, shallow_color, surface_fade);
+    vec3 absorbed_color = vertical_color * mix(vec3(0.72, 0.78, 0.90), transmittance, 0.45);
+    absorbed_color *= mix(vec3(1.0), vec3(0.86, 0.90, 0.96), depth_factor * 0.65);
     fragColor = vec4(absorbed_color, alpha);
 }

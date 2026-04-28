@@ -105,8 +105,8 @@ class SolidModel(BaseModel):
 
 class GlassPanel(BaseModel):
     def __init__(self, app, pos=(0,0,0), rot=(0,0,0), scale=(1,1,1),
-                 tint=(0.55, 0.75, 0.80), alpha=0.10):
-        super().__init__(app, 'tank_wall', pos, rot, scale)
+                 tint=(0.55, 0.75, 0.80), alpha=0.10, vao_name='tank_wall'):
+        super().__init__(app, vao_name, pos, rot, scale)
         self.tint  = glm.vec3(tint)
         self.alpha = alpha
 

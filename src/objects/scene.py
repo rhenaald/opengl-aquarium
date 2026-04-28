@@ -12,7 +12,7 @@ from src.objects.model import SolidModel, GlassPanel, GlueSeam, SandFloor, Seawe
 TANK_W = 5.0   # X half-width
 TANK_H = 6.0   # full height
 TANK_D = 5.0   # Z half-depth
-WALL_T = 2  # glass thickness
+WALL_T = 0.12  # glass thickness
 WATER_SURFACE_DIFFERENCE = 2  # the distance between water surface and tank height
 
 
@@ -51,6 +51,9 @@ class AquariumScene:
     def _build_tank(self):
         app = self.app
         W, H, D = TANK_W, TANK_H, TANK_D
+        wall_height = H + WATER_SURFACE_DIFFERENCE
+        wall_half_h = wall_height * 0.5
+        wall_center_y = wall_half_h
 
         # --- Sand floor ---
         self.static_opaque.append(
@@ -64,31 +67,54 @@ class AquariumScene:
         def add_glass(pos, rot, scale):
             self.glass_panels.append(
                 GlassPanel(app, pos=pos, rot=rot, scale=scale,
-                           tint=glass_tint, alpha=glass_alpha)
+                           tint=glass_tint, alpha=glass_alpha, vao_name='glass_cube')
             )
 
         # Front (Z+)
-        add_glass(pos=(0, H*0.5, D),  rot=(0, 0, 0),
-                  scale=(W*2, H+WATER_SURFACE_DIFFERENCE, 1))
+        add_glass(pos=(0, wall_center_y, D),  rot=(0, 0, 0),
+                  scale=(W, wall_half_h, WALL_T * 0.5))
         # Back (Z-)
-        add_glass(pos=(0, H*0.5, -D), rot=(0, 180, 0),
-                  scale=(W*2, H+WATER_SURFACE_DIFFERENCE, 1))
+        add_glass(pos=(0, wall_center_y, -D), rot=(0, 180, 0),
+                  scale=(W, wall_half_h, WALL_T * 0.5))
         # Left (X-)
-        add_glass(pos=(-W, H*0.5, 0), rot=(0, -90, 0),
-                  scale=(D*2, H+WATER_SURFACE_DIFFERENCE, 1))
+        add_glass(pos=(-W, wall_center_y, 0), rot=(0, 0, 0),
+                  scale=(WALL_T * 0.5, wall_half_h, D))
         # Right (X+)
-        add_glass(pos=(W, H*0.5, 0),  rot=(0,  90, 0),
-                  scale=(D*2, H+WATER_SURFACE_DIFFERENCE, 1))
+        add_glass(pos=(W, wall_center_y, 0),  rot=(0, 0, 0),
+                  scale=(WALL_T * 0.5, wall_half_h, D))
 
         # --- Transparent glue seams at direct glass-to-glass joins ---
+        seam_r = 0.035
         for sx in (-1, 1):
             for sz in (-1, 1):
                 self.glass_panels.append(GlueSeam(
                     app,
-                    pos=(sx * W, H * 0.5, sz * D),
-                    scale=(0.035, H * 0.5, 0.035),
+                    pos=(sx * W, wall_center_y, sz * D),
+                    scale=(seam_r, wall_half_h, seam_r),
                     tint=(0.70, 0.90, 0.95),
                     alpha=0.18,
+                ))
+
+        # --- Subtle glass edge beads for stronger edge visibility ---
+        edge_r = 0.028
+        edge_tint = (0.68, 0.88, 0.94)
+        edge_alpha = 0.14
+        for y in (0.0, wall_height):
+            for z in (-D, D):
+                self.glass_panels.append(GlueSeam(
+                    app,
+                    pos=(0, y, z),
+                    scale=(W, edge_r, edge_r),
+                    tint=edge_tint,
+                    alpha=edge_alpha,
+                ))
+            for x in (-W, W):
+                self.glass_panels.append(GlueSeam(
+                    app,
+                    pos=(x, y, 0),
+                    scale=(edge_r, edge_r, D),
+                    tint=edge_tint,
+                    alpha=edge_alpha,
                 ))
 
     def _build_decorations(self):
