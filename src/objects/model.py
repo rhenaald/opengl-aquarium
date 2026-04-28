@@ -67,6 +67,12 @@ class BaseModel:
         wc = self.sim.water_color
         _set(p, 'u_water_color', glm.vec3(wc))
         _set(p, 'u_fog_density', 1.0)
+        _set(p, 'u_sun_pos', glm.vec3(0.0, 9.0, -2.5))
+        _set(p, 'u_sun_dir', glm.normalize(glm.vec3(0.0, -1.0, 0.22)))
+        _set(p, 'u_sun_cutoff', math.cos(math.radians(34.0)))
+        _set(p, 'u_water_surface_y', 6.0)
+        _set(p, 'u_caustic_strength', 0.35 * self.sim.light_intensity)
+        _set(p, 'u_caustic_speed', self.sim.caustic_speed)
 
     def update(self, dt, t): pass
 
