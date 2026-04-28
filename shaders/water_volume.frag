@@ -101,10 +101,11 @@ bool pointInFootprint(vec2 xz) {
 }
 
 vec2 ray_box(vec3 ray_origin, vec3 ray_dir, vec3 box_min, vec3 box_max) {
+    const float eps = 0.00001;
     vec3 safe_dir = vec3(
-        abs(ray_dir.x) < 0.00001 ? 0.00001 : ray_dir.x,
-        abs(ray_dir.y) < 0.00001 ? 0.00001 : ray_dir.y,
-        abs(ray_dir.z) < 0.00001 ? 0.00001 : ray_dir.z
+        abs(ray_dir.x) < eps ? (ray_dir.x < 0.0 ? -eps : eps) : ray_dir.x,
+        abs(ray_dir.y) < eps ? (ray_dir.y < 0.0 ? -eps : eps) : ray_dir.y,
+        abs(ray_dir.z) < eps ? (ray_dir.z < 0.0 ? -eps : eps) : ray_dir.z
     );
     vec3 inv_dir = 1.0 / safe_dir;
     vec3 t0 = (box_min - ray_origin) * inv_dir;
@@ -119,7 +120,11 @@ vec2 ray_box(vec3 ray_origin, vec3 ray_dir, vec3 box_min, vec3 box_max) {
 vec3 reconstructWorld(vec2 uv, float depth) {
     vec4 clip = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     vec4 world = u_inv_view_proj * clip;
-    return world.xyz / max(world.w, 0.00001);
+    return world.xyz / world.w;
+}
+
+bool isUnderwater(vec3 p) {
+    return pointInFootprint(p.xz) && p.y <= surfaceHeight(p.xz, u_time);
 }
 
 void main() {
@@ -143,42 +148,72 @@ void main() {
         discard;
     }
 
-    vec3 sample_pos = has_scene_hit ? visible_pos : frag_pos;
-    if (!pointInFootprint(sample_pos.xz)) {
-        discard;
+    bool found_underwater = false;
+    bool closed_underwater = false;
+    float water_enter_t = enter_t;
+    float water_exit_t = exit_t;
+    float prev_t = enter_t;
+    bool prev_under = isUnderwater(cam_pos + ray_dir * prev_t);
+
+    if (prev_under) {
+        found_underwater = true;
+        water_enter_t = enter_t;
+        water_exit_t = enter_t;
     }
 
-    float surface_y = surfaceHeight(sample_pos.xz, u_time);
-    if (sample_pos.y > surface_y) {
-        discard;
-    }
+    for (int i = 1; i <= 16; ++i) {
+        float t = mix(enter_t, exit_t, float(i) / 16.0);
+        bool under = isUnderwater(cam_pos + ray_dir * t);
 
-    float eps = 0.05;
-    float h = waterHeight(sample_pos.xz, u_time);
-    float hx = waterHeight(sample_pos.xz + vec2(eps, 0.0), u_time);
-    float hz = waterHeight(sample_pos.xz + vec2(0.0, eps), u_time);
-    vec3 surface_normal = normalize(vec3(-(hx - h) / eps, 1.0, -(hz - h) / eps));
-    vec3 surface_point = vec3(sample_pos.x, surface_y, sample_pos.z);
-
-    float denom = dot(ray_dir, surface_normal);
-    if (abs(denom) > 0.0001) {
-        float t_surface = dot(surface_point - cam_pos, surface_normal) / denom;
-        vec3 surface_hit = cam_pos + ray_dir * t_surface;
-        float origin_side = dot(cam_pos - surface_point, surface_normal);
-
-        if (t_surface >= 0.0 && pointInFootprint(surface_hit.xz)) {
-            if (origin_side > 0.0 && denom < 0.0) {
-                enter_t = max(enter_t, t_surface);
-            } else if (origin_side < 0.0 && denom > 0.0) {
-                exit_t = min(exit_t, t_surface);
+        if (under) {
+            if (!found_underwater) {
+                float lo = prev_t;
+                float hi = t;
+                for (int j = 0; j < 12; ++j) {
+                    float mid = (lo + hi) * 0.5;
+                    if (isUnderwater(cam_pos + ray_dir * mid)) {
+                        hi = mid;
+                    } else {
+                        lo = mid;
+                    }
+                }
+                water_enter_t = hi;
             }
+            found_underwater = true;
+            water_exit_t = t;
+        } else if (found_underwater && prev_under) {
+            float lo = prev_t;
+            float hi = t;
+            for (int j = 0; j < 12; ++j) {
+                float mid = (lo + hi) * 0.5;
+                if (isUnderwater(cam_pos + ray_dir * mid)) {
+                    lo = mid;
+                } else {
+                    hi = mid;
+                }
+            }
+            water_exit_t = lo;
+            closed_underwater = true;
+            break;
         }
+
+        prev_t = t;
+        prev_under = under;
     }
+
+    if (!found_underwater) {
+        discard;
+    }
+
+    enter_t = water_enter_t;
+    exit_t = closed_underwater ? water_exit_t : max(water_exit_t, enter_t);
 
     if (exit_t <= enter_t) {
         discard;
     }
 
+    vec3 sample_pos = cam_pos + ray_dir * exit_t;
+    float surface_y = surfaceHeight(sample_pos.xz, u_time);
     float path_len = exit_t - enter_t;
     vec3 sigma = vec3(1.65, 0.95, 0.55) * u_absorption;
     vec3 transmittance = exp(-sigma * path_len);

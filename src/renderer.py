@@ -183,9 +183,17 @@ class AquariumRenderer:
             b.render()
 
     def _render_water_volume(self):
-        self.ctx.enable_only(mgl.BLEND)
+        self.ctx.enable_only(mgl.BLEND | mgl.CULL_FACE)
         self.ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
+        p = self.app.camera.position
+        inside_water = (
+            -5.0 <= p.x <= 5.0 and
+            0.0 <= p.y <= 6.0 and
+            -5.0 <= p.z <= 5.0
+        )
+        self.ctx.cull_face = 'back' if inside_water else 'front'
         self.water_volume.render()
+        self.ctx.cull_face = 'back'
 
     def _render_glass(self):
         scene = self.scene
