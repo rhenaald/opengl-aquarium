@@ -2,11 +2,13 @@
 AquariumRenderer - renders the scene in correct order:
   1. Skybox background
   2. Opaque objects (sand, rocks, coral, seaweed, fish)
-  3. Transparent / additive objects sorted back-to-front (bubbles)
-  4. Glass panels (depth-write off, blended)
+  3. Water volume absorption overlay
+  4. Transparent / additive objects sorted back-to-front (bubbles)
+  5. Glass panels (depth-write off, blended)
 """
 
 from src.objects.skybox import Skybox
+from src.objects.water_volume import WaterVolume
 
 
 class AquariumRenderer:
@@ -15,6 +17,7 @@ class AquariumRenderer:
         self.ctx   = app.ctx
         self.scene = app.scene
         self.skybox = Skybox(app)
+        self.water_volume = WaterVolume(app)
 
     def render(self):
         scene = self.scene
@@ -32,7 +35,12 @@ class AquariumRenderer:
         for f in scene.fish:
             f.render()
 
-        # ── 3. Bubbles — transparent, no back-face culling ─────────────
+        # ── 3. Water volume — Beer-Lambert absorption overlay ──────────
+        ctx.enable_only(self.ctx.BLEND)
+        ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
+        self.water_volume.render()
+
+        # ── 4. Bubbles — transparent, no back-face culling ─────────────
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
         ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
 
@@ -46,7 +54,7 @@ class AquariumRenderer:
         for b in sorted_bubbles:
             b.render()
 
-        # ── 4. Glass panels — transparent, no culling, depth-write off ─
+        # ── 5. Glass panels — transparent, no culling, depth-write off ─
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
         ctx.depth_func = '<='   # LEQUAL
 

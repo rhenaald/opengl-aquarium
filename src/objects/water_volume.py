@@ -1,0 +1,29 @@
+from pyglm import glm
+
+
+class WaterVolume:
+    def __init__(self, app):
+        self.app = app
+        self.camera = app.camera
+        self.sim = app.sim
+        self.vao = app.mesh.vao.vaos['water_volume']
+        self.program = self.vao.program
+
+        self.box_min = glm.vec3(-5.0, 0.0, -5.0)
+        self.box_max = glm.vec3(5.0, 6.0, 5.0)
+        self.m_model = glm.scale(
+            glm.translate(glm.mat4(), glm.vec3(0.0, 3.0, 0.0)),
+            glm.vec3(5.0, 3.0, 5.0),
+        )
+
+        self.program['m_proj'].write(self.camera.m_proj)
+        self.program['m_model'].write(self.m_model)
+        self.program['u_box_min'].write(self.box_min)
+        self.program['u_box_max'].write(self.box_max)
+
+    def render(self):
+        self.program['m_view'].write(self.camera.m_view)
+        self.program['cam_pos'].write(self.camera.position)
+        self.program['u_water_color'].write(glm.vec3(self.sim.water_color))
+        self.program['u_absorption'].value = 0.18
+        self.vao.render()

@@ -17,6 +17,7 @@ class VAO:
 
         self.vaos = {
             'skybox':       make('skybox',      'skybox'),
+            'water_volume': make('water_volume', 'cube'),
             'tank_wall':    make('glass',       'glass_panel'),
             'sand_floor':   make('sand',         'plane'),
             'rock':         make('phong_color',  'cube'),

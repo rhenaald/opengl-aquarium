@@ -41,9 +41,5 @@ void main() {
 
     vec3 color = ambient + diffuse + specular;
 
-    float dist = length(cam_pos - frag_pos);
-    float fog  = exp(-u_fog_density * dist * 0.07);
-    color = mix(u_water_color, color, clamp(fog, 0.0, 1.0));
-
     fragColor = vec4(color, 0.92);
 }
