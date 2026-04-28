@@ -15,8 +15,8 @@ from src.objects.water_volume import WaterVolume
 
 class AquariumRenderer:
     def __init__(self, app):
-        self.app   = app
-        self.ctx   = app.ctx
+        self.app = app
+        self.ctx = app.ctx
         self.scene = app.scene
         self.skybox = Skybox(app)
         self.water_volume = WaterVolume(app)
@@ -61,7 +61,8 @@ class AquariumRenderer:
             data = pg.image.tostring(surface, 'RGB', False)
             self.glass_imperfections = self.ctx.texture(size, 3, data=data)
         else:
-            self.glass_imperfections = self.ctx.texture((1, 1), 3, data=b'\x80\x80\x80')
+            self.glass_imperfections = self.ctx.texture(
+                (1, 1), 3, data=b'\x80\x80\x80')
 
         self.glass_imperfections.filter = (self.ctx.LINEAR, self.ctx.LINEAR)
         self.glass_imperfections.repeat_x = True
@@ -76,7 +77,8 @@ class AquariumRenderer:
             data = pg.image.tostring(surface, 'RGB', False)
             self.glass_normal_map = self.ctx.texture(size, 3, data=data)
         else:
-            self.glass_normal_map = self.ctx.texture((1, 1), 3, data=b'\x80\x80\xff')
+            self.glass_normal_map = self.ctx.texture(
+                (1, 1), 3, data=b'\x80\x80\xff')
 
         self.glass_normal_map.filter = (self.ctx.LINEAR, self.ctx.LINEAR)
         self.glass_normal_map.repeat_x = True
@@ -97,8 +99,8 @@ class AquariumRenderer:
 
     def _render_scene_color(self):
         scene = self.scene
-        ctx   = self.ctx
-        cam   = self.app.camera
+        ctx = self.ctx
+        cam = self.app.camera
 
         # ── 1. Skybox background ───────────────────────────────────────
         ctx.enable_only(0)
@@ -122,6 +124,7 @@ class AquariumRenderer:
 
         # Sort bubbles back-to-front
         cam_pos = cam.position
+
         def bubble_dist(b):
             d = b.pos - cam_pos
             return -(d.x*d.x + d.y*d.y + d.z*d.z)
@@ -134,6 +137,13 @@ class AquariumRenderer:
         scene = self.scene
         ctx = self.ctx
         cam = self.app.camera
+
+        # ── 3.5. Water surface — transparent, no culling, no depth write ─
+        ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
+        ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
+        ctx.depth_func = '<='
+        scene.water_surface.render()
+        ctx.depth_func = '<'
 
         # ── 5. Glass panels — refraction + reflection, sorted back-to-front ─
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)

@@ -722,18 +722,48 @@ class FishBodyVBOModern(BaseVBO):
         self._build_pelvics(data)
         return np.array(data, dtype='f4').reshape(-1, 6)
 
+# ── Water Surface Grid ────────────────────────────────────────────────────────
+class WaterSurfaceVBO(BaseVBO):
+    """High-resolution grid plane for water surface with per-vertex noise displacement."""
+    format  = '3f'
+    attribs = ['in_position']
+
+    def __init__(self, ctx, subdivisions=64, size=1.0):
+        self.subdivisions = subdivisions
+        self.size = size
+        super().__init__(ctx)
+
+    def get_vertex_data(self):
+        n = self.subdivisions
+        s = self.size
+        data = []
+        for i in range(n):
+            for j in range(n):
+                x0 = -s + 2.0 * s * i / n
+                z0 = -s + 2.0 * s * j / n
+                x1 = -s + 2.0 * s * (i + 1) / n
+                z1 = -s + 2.0 * s * (j + 1) / n
+
+                # Two triangles per cell (position only)
+                for tri in [(x0, z0, x1, z0, x0, z1), (x1, z0, x1, z1, x0, z1)]:
+                    for k in range(0, 6, 2):
+                        data.extend((tri[k], 0.0, tri[k + 1]))
+        return np.array(data, dtype='f4').reshape(-1, 3)
+
+
 # ── VBO Container ─────────────────────────────────────────────────────────────
 class VBO:
     def __init__(self, ctx):
         self.vbos = {
-            'skybox':      SkyboxVBO(ctx),
-            'cube':        CubeVBO(ctx),
-            'plane':       PlaneVBO(ctx, size=1.0),
-            'sphere':      SphereVBO(ctx, stacks=8, slices=12),
-            'sphere_tiny': SphereVBO(ctx, stacks=5, slices=8),
-            'cylinder':    CylinderVBO(ctx, segments=10, height=1.0, radius=1.0),
-            'glass_panel': GlassPanelVBO(ctx, w=1.0, h=1.0),
-            'fish_body':   FishBodyVBOModern(ctx),
+            'skybox':        SkyboxVBO(ctx),
+            'cube':          CubeVBO(ctx),
+            'plane':         PlaneVBO(ctx, size=1.0),
+            'sphere':        SphereVBO(ctx, stacks=8, slices=12),
+            'sphere_tiny':   SphereVBO(ctx, stacks=5, slices=8),
+            'cylinder':      CylinderVBO(ctx, segments=10, height=1.0, radius=1.0),
+            'glass_panel':   GlassPanelVBO(ctx, w=1.0, h=1.0),
+            'fish_body':     FishBodyVBOModern(ctx),
+            'water_grid':    WaterSurfaceVBO(ctx, subdivisions=64, size=1.0),
         }
 
     def destroy(self):

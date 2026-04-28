@@ -1,6 +1,7 @@
 from src.engine.shader_program import ShaderProgram
 from src.engine.vbo import VBO
 
+
 class VAO:
     def __init__(self, ctx):
         self.ctx = ctx
@@ -12,7 +13,7 @@ class VAO:
 
         def make(prog_name, vbo_name):
             prog = p[prog_name]
-            vbo  = v[vbo_name]
+            vbo = v[vbo_name]
             return ctx.vertex_array(prog, [(vbo.vbo, vbo.format, *vbo.attribs)])
 
         self.vaos = {
@@ -24,10 +25,12 @@ class VAO:
             'rock':         make('phong_color',  'cube'),
             'coral':        make('phong_color',  'cylinder'),
             'seaweed':      make('seaweed',      'cylinder'),
-            'fish':         make('fish',         'fish_body'),   # ← realistic mesh
+            # ← realistic mesh
+            'fish':         make('fish',         'fish_body'),
             'bubble':       make('bubble',       'sphere_tiny'),
             'solid_cube':   make('phong_color',  'cube'),
             'solid_sphere': make('phong_color',  'sphere'),
+            'water_surface':  make('water_surface', 'water_grid'),
         }
 
     def destroy(self):

@@ -10,7 +10,8 @@ class SimulationState:
         self.paused = False
 
         self.wave_speed = 1.0
-        self.wave_amplitude = 0.08
+        self.wave_amplitude = 0.060
+        self.wave_frequency = 1.00
 
         self.max_bubbles = 40
         self.bubble_rise_speed = 0.8

@@ -5,7 +5,7 @@ runtime lists of fish and bubbles.
 
 import random
 import math
-from src.objects.model import SolidModel, GlassPanel, GlueSeam, SandFloor, Seaweed, Fish, Bubble
+from src.objects.model import SolidModel, GlassPanel, GlueSeam, SandFloor, Seaweed, Fish, Bubble, WaterSurface
 
 
 # Tank dimensions (half-extents)
@@ -26,6 +26,9 @@ class AquariumScene:
         self.fish = []
         self.bubbles = []
 
+        # Water surface (animated)
+        self.water_surface = WaterSurface(app, water_y=5.4)
+
         # Bubble spawn timer
         self._bubble_timer = 0.0
 
@@ -42,6 +45,7 @@ class AquariumScene:
             *self.glass_panels,
             *self.fish,
             *self.bubbles,
+            self.water_surface,
         ]
 
     # ──────────────────────────────────────────────────────────────────
