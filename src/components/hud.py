@@ -55,6 +55,19 @@ def _panel(surf, rect, radius=10):
     _outline(surf, rect, DIVIDER, w=1, r=radius)
 
 
+# ── Slider descriptor ────────────────────────────────────────────────────────
+
+class SliderDef:
+    """Defines a slider: label, min, max, attribute on SimulationState, format string."""
+    def __init__(self, label, attr, vmin, vmax, step=0.01, fmt="{:.2f}"):
+        self.label = label
+        self.attr  = attr
+        self.vmin  = vmin
+        self.vmax  = vmax
+        self.step  = step
+        self.fmt   = fmt
+
+
 # ── HUD ───────────────────────────────────────────────────────────────────────
 
 class HUD:
@@ -63,6 +76,16 @@ class HUD:
     Call  hud.render(screen)  once per frame after 3D scene rendering.
     Aliran data tidak berubah — baca dari app.scene, app.camera, app.clock, app.sim.
     """
+
+    # Slider definitions grouped by section
+    FISH_SLIDERS = [
+        SliderDef("FISH TARGET", "max_fish", 0, 16, step=1, fmt="{:.0f}"),
+    ]
+    WATER_SLIDERS = [
+        SliderDef("WAVE AMPLITUDE", "wave_amplitude", 0.0, 0.15, step=0.005, fmt="{:.3f}"),
+        SliderDef("WAVE FREQUENCY", "wave_frequency", 0.0, 4.0,  step=0.05,  fmt="{:.2f}"),
+        SliderDef("WAVE SPEED",     "wave_speed",     0.0, 2.5,  step=0.05,  fmt="{:.2f}"),
+    ]
 
     def __init__(self, app):
         self.app = app
@@ -78,11 +101,14 @@ class HUD:
         self.INNER = 12
         self.GAP   = 5
 
-        self.slider_min = 0
-        self.slider_max = 16
-        self.slider_dragging = False
-        self.slider_value = self.app.sim.max_fish
-        self.slider_rect = None
+        # Hamburger menu state
+        self.menu_open = False
+        self.hamburger_rect = None  # screen-space rect for click detection
+
+        # Slider interaction state
+        self._active_slider_idx = None  # which slider is being dragged (flat index)
+        self._all_sliders = self.FISH_SLIDERS + self.WATER_SLIDERS
+        self._slider_rects = {}  # idx → pg.Rect (screen-space track rects)
 
         self._tick     = 0.0
         self._obj_info = None
@@ -104,11 +130,11 @@ class HUD:
 
         hud = _surf(self.W, self.H)
         self._draw_topbar(hud)
-        self._draw_fish_slider(hud)
         self._draw_live_panel(hud)
         self._draw_object_panel(hud)
         self._draw_controls_panel(hud)
         self._draw_mode_pill(hud)
+        self._draw_hamburger_menu(hud)
 
         # Flip Y — kompensasi OpenGL (origin bawah-kiri) vs Pygame (origin atas-kiri)
         hud = pg.transform.flip(hud, False, True)
@@ -258,7 +284,6 @@ class HUD:
                 ("SPACE",  "Pause / Play"),
                 ("B",      "Spawn bubble"),
                 ("F",      "Spawn fish"),
-                ("DRAG",   "Adjust fish count"),
                 ("ESC",    "Quit"),
             ]
 
@@ -291,78 +316,214 @@ class HUD:
 
         dst.blit(panel, (self.W - self.PAD - PANEL_W, self.H - self.PAD - PANEL_H))
 
-    # ── Fish target slider (center bottom on screen) ──────────────────────────
+    # ── Hamburger menu (bottom-center) ────────────────────────────────────────
 
-    def _draw_fish_slider(self, dst):
-        target = self.app.sim.max_fish
-        self.slider_value = target
+    def _draw_hamburger_menu(self, dst):
+        """Draw the hamburger button and, if open, the settings panel above it."""
+        BTN_W = 48
+        BTN_H = 40
+        btn_x = self.W // 2 - BTN_W // 2
+        btn_y = self.H - self.PAD - BTN_H
 
-        PANEL_W = 360
-        PANEL_H = 86
-        x = self.W // 2 - PANEL_W // 2
-        y = self.H - self.PAD - PANEL_H
+        # ── Button ──
+        btn = _surf(BTN_W, BTN_H)
+        btn_col = GLOW_CYAN if not self.menu_open else GLOW_GREEN
+        _filled(btn, (0, 0, BTN_W, BTN_H), (*SEA_DEEP[:3], 230), r=12)
+        _outline(btn, (0, 0, BTN_W, BTN_H), (*btn_col[:3], 140), w=1, r=12)
+
+        # Hamburger icon (3 lines) or X when open
+        cx = BTN_W // 2
+        cy = BTN_H // 2
+        if self.menu_open:
+            # X icon
+            pg.draw.line(btn, btn_col, (cx - 7, cy - 7), (cx + 7, cy + 7), 2)
+            pg.draw.line(btn, btn_col, (cx + 7, cy - 7), (cx - 7, cy + 7), 2)
+        else:
+            # Three horizontal lines
+            for dy in (-8, 0, 8):
+                pg.draw.line(btn, btn_col, (cx - 10, cy + dy), (cx + 10, cy + dy), 2)
+
+        dst.blit(btn, (btn_x, btn_y))
+
+        # Store button rect for click detection (screen-space, pre-flip)
+        self.hamburger_rect = pg.Rect(btn_x, btn_y, BTN_W, BTN_H)
+
+        # ── Settings panel (if open) ──
+        if self.menu_open:
+            self._draw_settings_panel(dst, btn_x, btn_y, BTN_W)
+
+    def _draw_settings_panel(self, dst, btn_x, btn_y, btn_w):
+        """Draw the settings panel floating above the hamburger button."""
+        PANEL_W = 340
+        SLIDER_H = 46   # height per slider row
+        SECTION_GAP = 14
+        SEPARATOR_H = 14
+
+        # Calculate panel height
+        fish_rows   = len(self.FISH_SLIDERS)
+        water_rows  = len(self.WATER_SLIDERS)
+        content_h   = (self.INNER +                       # top pad
+                       FS_XS + 8 +                        # FISH header
+                       fish_rows * SLIDER_H +             # fish sliders
+                       SEPARATOR_H + SECTION_GAP +        # separator
+                       FS_XS + 8 +                        # WATER header
+                       water_rows * SLIDER_H +            # water sliders
+                       self.INNER)                         # bottom pad
+
+        PANEL_H = content_h
+        panel_x = self.W // 2 - PANEL_W // 2
+        panel_y = btn_y - PANEL_H - 8
 
         panel = _surf(PANEL_W, PANEL_H)
-        _panel(panel, (0, 0, PANEL_W, PANEL_H), radius=14)
+        _filled(panel, (0, 0, PANEL_W, PANEL_H), (*SEA_DEEP[:3], 235), r=14)
+        _outline(panel, (0, 0, PANEL_W, PANEL_H), (*GLOW_CYAN[:3], 60), w=1, r=14)
 
-        hdr = self.f_s.render("FISH TARGET", True, GLOW_CYAN)
-        panel.blit(hdr, (self.INNER, self.INNER))
+        # Subtle glow line at bottom
+        for i, a in enumerate([40, 18, 6]):
+            pg.draw.line(panel, (*GLOW_CYAN[:3], a),
+                         (14, PANEL_H - 1 - i), (PANEL_W - 14, PANEL_H - 1 - i))
 
-        # Slider track
-        track_y = self.INNER + FS_M + 16
+        ry = self.INNER
+        slider_flat_idx = 0
+
+        # ── Section: FISH ──
+        hdr = self.f_xs.render("FISH", True, GLOW_CYAN)
+        panel.blit(hdr, (self.INNER, ry))
+        ry += FS_XS + 4
+        _hline(panel, self.INNER, PANEL_W - self.INNER, ry, (*GLOW_CYAN[:3], 35))
+        ry += 4
+
+        for sdef in self.FISH_SLIDERS:
+            self._draw_slider(panel, sdef, slider_flat_idx,
+                              self.INNER, ry, PANEL_W - self.INNER * 2,
+                              panel_x, panel_y)
+            slider_flat_idx += 1
+            ry += SLIDER_H
+
+        # Spacer antar section (tanpa separator line)
+        ry += SEPARATOR_H
+
+        # ── Section: WATER SURFACE ──
+        hdr2 = self.f_xs.render("WATER SURFACE", True, GLOW_CYAN)
+        panel.blit(hdr2, (self.INNER, ry))
+        ry += FS_XS + 4
+        _hline(panel, self.INNER, PANEL_W - self.INNER, ry, (*GLOW_CYAN[:3], 35))
+        ry += 4
+
+        for sdef in self.WATER_SLIDERS:
+            self._draw_slider(panel, sdef, slider_flat_idx,
+                              self.INNER, ry, PANEL_W - self.INNER * 2,
+                              panel_x, panel_y)
+            slider_flat_idx += 1
+            ry += SLIDER_H
+
+        dst.blit(panel, (panel_x, panel_y))
+
+    def _draw_slider(self, panel, sdef, flat_idx, x, y, width, panel_x, panel_y):
+        """Draw a single slider on the panel surface."""
+        sim = self.app.sim
+        value = getattr(sim, sdef.attr)
+
+        # Label + value
+        label_surf = self.f_xs.render(sdef.label, True, TEXT_MID)
+        value_str  = sdef.fmt.format(value)
+        value_surf = self.f_s.render(value_str, True, TEXT_BRIGHT)
+        panel.blit(label_surf, (x, y))
+        panel.blit(value_surf, (x + width - value_surf.get_width(), y))
+
+        # Track
+        track_y = y + FS_XS + 8
         track_h = 6
-        track_x = self.INNER
-        track_w = PANEL_W - self.INNER * 2
-        _filled(panel, (track_x, track_y, track_w, track_h), (*TEXT_DIM[:3], 120), r=3)
+        track_x = x
+        track_w = width
+
+        # Track background
+        _filled(panel, (track_x, track_y, track_w, track_h), (*TEXT_DIM[:3], 100), r=3)
+
+        # Filled portion
+        frac = (value - sdef.vmin) / max(0.001, sdef.vmax - sdef.vmin)
+        frac = max(0.0, min(1.0, frac))
+        fill_w = int(frac * track_w)
+        if fill_w > 0:
+            _filled(panel, (track_x, track_y, fill_w, track_h), (*GLOW_CYAN[:3], 80), r=3)
 
         # Handle
-        handle_x = track_x + int((target - self.slider_min) / max(1, self.slider_max - self.slider_min) * track_w)
+        handle_x = track_x + int(frac * track_w)
         handle_y = track_y + track_h // 2
-        _dot(panel, handle_x, handle_y, 9, GLOW_GREEN)
-        _outline(panel, (handle_x - 10, handle_y - 10, 20, 20), (*GLOW_CYAN[:3], 180), w=2, r=10)
 
-        # Labels
-        value_label = self.f_m.render(f"{target} fish", True, TEXT_BRIGHT)
-        panel.blit(value_label, (self.INNER, track_y + track_h + 12))
+        # Glow ring
+        _dot(panel, handle_x, handle_y, 8, (*GLOW_GREEN[:3], 60))
+        _dot(panel, handle_x, handle_y, 6, GLOW_GREEN)
+        _outline(panel, (handle_x - 7, handle_y - 7, 14, 14), (*GLOW_CYAN[:3], 150), w=1, r=7)
 
-        min_label = self.f_xs.render(str(self.slider_min), True, TEXT_MID)
-        max_label = self.f_xs.render(str(self.slider_max), True, TEXT_MID)
-        panel.blit(min_label, (track_x, track_y + track_h + 12))
-        panel.blit(max_label, (track_x + track_w - max_label.get_width(), track_y + track_h + 12))
+        # Store screen-space track rect for click detection
+        self._slider_rects[flat_idx] = pg.Rect(
+            panel_x + track_x, panel_y + track_y, track_w, track_h + 16
+        )
 
-        self.slider_rect = pg.Rect(x + track_x, y + track_y, track_w, track_h)
-        self.slider_handle_rect = pg.Rect(x + handle_x - 12, y + handle_y - 12, 24, 24)
-
-        dst.blit(panel, (x, y))
+    # ── Event handling ────────────────────────────────────────────────────────
 
     def _pos_to_hud(self, pos):
+        """Convert mouse position, accounting for Y-flip."""
         x, y = pos
         return x, y
 
-    def _update_slider_value(self, mouse_x):
-        if self.slider_rect is None:
+    def _screen_to_hud_y(self, screen_y):
+        """Convert screen Y to HUD Y (pre-flip coordinate)."""
+        return self.H - screen_y
+
+    def _update_slider_from_mouse(self, flat_idx, mouse_x):
+        """Update the simulation state from a slider drag."""
+        rect = self._slider_rects.get(flat_idx)
+        if rect is None:
             return
 
-        rel_x = mouse_x - self.slider_rect.x
-        rel_x = max(0, min(rel_x, self.slider_rect.width))
-        frac = rel_x / max(1, self.slider_rect.width)
-        value = round(self.slider_min + frac * (self.slider_max - self.slider_min))
-        self.app.sim.max_fish = value
-        self.slider_value = value
+        sdef = self._all_sliders[flat_idx]
+        rel_x = mouse_x - rect.x
+        rel_x = max(0, min(rel_x, rect.width))
+        frac = rel_x / max(1, rect.width)
+        raw_value = sdef.vmin + frac * (sdef.vmax - sdef.vmin)
+
+        # Snap to step
+        if sdef.step >= 1:
+            raw_value = round(raw_value)
+        else:
+            raw_value = round(raw_value / sdef.step) * sdef.step
+
+        raw_value = max(sdef.vmin, min(sdef.vmax, raw_value))
+        setattr(self.app.sim, sdef.attr, raw_value)
 
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
-            hx, hy = self._pos_to_hud(event.pos)
-            if self.slider_rect and self.slider_rect.collidepoint(hx, hy):
-                self.slider_dragging = True
-                self._update_slider_value(hx)
+            mx, my = event.pos
+            hud_y = self._screen_to_hud_y(my)
+
+            # Check hamburger button
+            # Be tolerant to Y-space mismatch: depending on render path, events may
+            # already be in HUD space or still in screen-top-left space.
+            if self.hamburger_rect and (
+                self.hamburger_rect.collidepoint(mx, hud_y) or
+                self.hamburger_rect.collidepoint(mx, my)
+            ):
+                self.menu_open = not self.menu_open
+                return
+
+            # Check sliders (only if menu is open)
+            if self.menu_open:
+                for idx, rect in self._slider_rects.items():
+                    # Expand hit area vertically
+                    expanded = pg.Rect(rect.x, rect.y - 8, rect.width, rect.height + 16)
+                    if expanded.collidepoint(mx, hud_y) or expanded.collidepoint(mx, my):
+                        self._active_slider_idx = idx
+                        self._update_slider_from_mouse(idx, mx)
+                        return
 
         elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
-            self.slider_dragging = False
+            self._active_slider_idx = None
 
-        elif event.type == pg.MOUSEMOTION and self.slider_dragging:
-            hx, hy = self._pos_to_hud(event.pos)
-            self._update_slider_value(hx)
+        elif event.type == pg.MOUSEMOTION and self._active_slider_idx is not None:
+            mx, my = event.pos
+            self._update_slider_from_mouse(self._active_slider_idx, mx)
 
     # ── Mode pill (top-right, under bar) ──────────────────────────────────────
 
