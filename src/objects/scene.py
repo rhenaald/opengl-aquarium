@@ -34,6 +34,14 @@ class AquariumScene:
 
         self._build_tank()
         self._build_decorations()
+        # Anemone clusters — clownfish habitat (rule-of-thirds positions)
+        self._build_anemone( 1.80, 0.0,  1.80)  # right-front secondary focal
+        self._build_anemone(-1.80, 0.0,  3.20)  # left-front accent
+        self._build_anemone( 3.00, 0.0, -1.60,  # right-back accent (smaller)
+                             col_stalk=(0.35, 0.12, 0.42),
+                             col_inner=(0.85, 0.28, 0.55),
+                             col_outer=(1.0,  0.60, 0.80),
+                             scale=0.75)
         self._spawn_initial_fish()
         self._spawn_initial_bubbles()
 
@@ -121,6 +129,88 @@ class AquariumScene:
                     alpha=edge_alpha,
                 ))
 
+    def _build_anemone(self, cx, cy, cz,
+                       col_stalk=(0.42, 0.16, 0.30),
+                       col_inner=(0.94, 0.36, 0.18),
+                       col_outer=(1.00, 0.70, 0.38),
+                       scale=1.0):
+        app = self.app
+        s = scale  # convenience alias
+
+        def add(vao, pos, rot, sc, color):
+            self.static_opaque.append(
+                SolidModel(app, vao, pos=pos, rot=rot, scale=sc, color=color))
+
+        add('coral',
+            (cx, cy + 0.18 * s, cz), (0, 0, 0),
+            (0.22 * s, 0.18 * s, 0.22 * s),
+            col_stalk)
+
+        add('solid_cube',
+            (cx, cy + 0.37 * s, cz), (0, 0, 0),
+            (0.20 * s, 0.028 * s, 0.20 * s),
+            (min(col_stalk[0] * 1.3, 1.0),
+             min(col_stalk[1] * 1.3, 1.0),
+             min(col_stalk[2] * 1.3, 1.0)))
+
+        tlen_o  = 0.27 * s   
+        trad_o  = 0.036 * s
+        tilt_o  = 50.0
+        t_rad_o = math.radians(tilt_o)
+
+        for i in range(8):
+            compass_deg = i * 45.0
+            c_rad = math.radians(compass_deg)
+            r_off = 0.10 * s
+
+            bx = cx + math.sin(c_rad) * r_off
+            bz = cz + math.cos(c_rad) * r_off
+            by = cy + 0.38 * s + tlen_o   # cylinder centre above oral disc
+
+            add('coral',
+                (bx, by, bz),
+                (tilt_o, -compass_deg, 0),
+                (trad_o, tlen_o, trad_o),
+                col_inner)
+
+            # Bulbous sphere tip
+            tip_x = bx + tlen_o * math.sin(t_rad_o) * math.sin(c_rad)
+            tip_y = by + tlen_o * math.cos(t_rad_o)
+            tip_z = bz + tlen_o * math.sin(t_rad_o) * math.cos(c_rad)
+            ts = 0.050 * s
+            add('solid_sphere',
+                (tip_x, tip_y, tip_z), (0, 0, 0),
+                (ts, ts, ts), col_outer)
+
+        # ── Inner ring: 6 shorter tentacles at 25° tilt ────────────────
+        tlen_i  = 0.22 * s
+        trad_i  = 0.030 * s
+        tilt_i  = 25.0
+        t_rad_i = math.radians(tilt_i)
+
+        for i in range(6):
+            compass_deg = i * 60.0 + 15.0   # offset so they fall between outer
+            c_rad = math.radians(compass_deg)
+            r_off = 0.05 * s
+
+            bx = cx + math.sin(c_rad) * r_off
+            bz = cz + math.cos(c_rad) * r_off
+            by = cy + 0.38 * s + tlen_i
+
+            add('coral',
+                (bx, by, bz),
+                (tilt_i, -compass_deg, 0),
+                (trad_i, tlen_i, trad_i),
+                col_inner)
+
+            tip_x = bx + tlen_i * math.sin(t_rad_i) * math.sin(c_rad)
+            tip_y = by + tlen_i * math.cos(t_rad_i)
+            tip_z = bz + tlen_i * math.sin(t_rad_i) * math.cos(c_rad)
+            ts = 0.042 * s
+            add('solid_sphere',
+                (tip_x, tip_y, tip_z), (0, 0, 0),
+                (ts, ts, ts), col_outer)
+
     def _build_decorations(self):
         app = self.app
 
@@ -194,34 +284,7 @@ class AquariumScene:
             scale=(0.55, 0.38, 0.45),
             color=(0.36, 0.32, 0.28)))
 
-        # Main spire — very tall, commanding
-        self.static_opaque.append(SolidModel(
-            app, 'coral',
-            pos=(1.8, 2.1, 1.8), rot=(0, 0, 0),
-            scale=(0.28, 2.1, 0.28),
-            color=(0.90, 0.20, 0.48)))
-        # Branch spires at varied heights
-        self.static_opaque.append(SolidModel(
-            app, 'coral',
-            pos=(1.35, 1.50, 2.25), rot=(0, 0, 0),
-            scale=(0.18, 1.50, 0.18),
-            color=(0.95, 0.42, 0.18)))
-        self.static_opaque.append(SolidModel(
-            app, 'coral',
-            pos=(2.30, 1.10, 1.45), rot=(0, 0, 0),
-            scale=(0.15, 1.10, 0.15),
-            color=(1.00, 0.72, 0.08)))
-        self.static_opaque.append(SolidModel(
-            app, 'coral',
-            pos=(2.05, 0.65, 2.35), rot=(0, 0, 0),
-            scale=(0.10, 0.65, 0.10),
-            color=(0.80, 0.16, 0.68)))
-        self.static_opaque.append(SolidModel(
-            app, 'coral',
-            pos=(1.50, 0.42, 1.40), rot=(0, 0, 0),
-            scale=(0.08, 0.42, 0.08),
-            color=(0.95, 0.58, 0.22)))
-        # Base rocks anchoring the spire cluster
+        # Base rocks anchoring the anemone cluster (anemones built in __init__)
         self.static_opaque.append(SolidModel(
             app, 'rock',
             pos=(1.80, 0.40, 1.80), rot=(0, 42, 0),
