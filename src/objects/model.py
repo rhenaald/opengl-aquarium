@@ -13,6 +13,7 @@ Hierarchy:
 
 import random
 import math
+import pygame as pg
 from pyglm import glm
 
 
@@ -200,10 +201,49 @@ class Fish(BaseModel):
         self._yaw         = math.atan2(self.direction.z, self.direction.x)
         self._target_yaw  = self._yaw   # smooth turning
         self._bob_offset  = random.uniform(0, math.tau)
+        self.is_fleeing   = False
+        self.is_fleeing   = False
+        self.flee_timer   = 0.0
+        self.FLEE_DURATION = 1.5    # detik — durasi kabur
+        self.FLEE_SPEED    = 5.0    # Kecepatan lari 3D (Bukan 150.0)
+        self.FLEE_RADIUS   = 3.0    # Jarak sensitif 3D (Bukan 1000.0)
+
 
     def update(self, dt, t):
         dt_s = dt * 0.001  # ms → seconds
 
+        # LOGIKA INTERAKTIF (BARU)
+        if self.is_fleeing:
+            self.flee_timer -= dt_s
+            # Jika timer kabur habis, kembalikan ke kondisi santai
+            if self.flee_timer <= 0.0:
+                self.is_fleeing = False
+                self.speed = getattr(self, 'normal_speed', random.uniform(0.8, 1.8))
+        else:
+            self.swim_phase += dt_s * self.speed * 2.0
+
+            # Logika mencari arah acak saat santai (tetap dipertahankan)
+            self.turn_timer -= dt_s
+            if self.turn_timer <= 0:
+                angle = random.uniform(0, math.tau)
+                vy    = random.uniform(-0.08, 0.08)
+                self.direction = glm.normalize(glm.vec3(
+                    math.cos(angle), vy, math.sin(angle)))
+                self._target_yaw = math.atan2(self.direction.z, self.direction.x)
+                self.turn_timer  = random.uniform(2.0, 5.0)
+
+        # Smooth yaw interpolation (no instant snapping)
+        yaw_diff = self._target_yaw - self._yaw
+        while yaw_diff >  math.pi: yaw_diff -= math.tau
+        while yaw_diff < -math.pi: yaw_diff += math.tau
+        self._yaw += yaw_diff * min(dt_s * 2.5, 1.0)
+        
+        # [CATATAN: Biarkan kode pergerakan (self.pos += move), 
+        #           pantulan dinding, dan matriks di bawah sini persis seperti aslinya]
+        move = self.direction * self.speed * dt_s
+        self.pos += move
+        
+    
         # Choose new direction periodically
         self.turn_timer -= dt_s
         if self.turn_timer <= 0:
@@ -259,7 +299,32 @@ class Fish(BaseModel):
         _set(self.program, 'u_swim_phase', self.swim_phase)
         self.vao.render()
 
+    def trigger_flee(self, click_pos):
+        cx, cy = click_pos
+        dx = self.pos.x - cx
+        dy = self.pos.y - cy
 
+        dist = (dx * dx + dy * dy) ** 0.5
+        
+        # FIX 1: Abaikan klik jika jaraknya LEBIH BESAR dari radius efektif
+        if dist > self.FLEE_RADIUS:
+            return
+        
+        # FIX 2: Simpan kecepatan normal ikan sebelum di-boost
+        if not hasattr(self, 'normal_speed'):
+            self.normal_speed = self.speed
+            
+        self.is_fleeing = True
+        self.flee_timer = self.FLEE_DURATION
+        self.speed = self.FLEE_SPEED # Kecepatan jadi sangat cepat
+        
+        # FIX 3: Ganti arah berenang (direction) ikan agar kabur dari klik
+        if dist > 0.01:
+            new_dir = glm.vec3(dx, dy + random.uniform(-0.5, 0.5), self.direction.z)
+            self.direction = glm.normalize(new_dir)
+            self._target_yaw = math.atan2(self.direction.z, self.direction.x)
+
+    
 # ─────────────────────────────────────────────────────────────────────────────
 #  Bubble
 # ─────────────────────────────────────────────────────────────────────────────
