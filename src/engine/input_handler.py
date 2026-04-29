@@ -16,6 +16,13 @@ class InputHandler:
         if hasattr(self.app, 'hud'):
             self.app.hud.handle_event(event)
 
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            # Cek dulu HUD tidak sedang diklik (agar slider tidak trigger flee)
+            if not (hasattr(self.app, 'hud') and self.app.hud.is_over(event.pos)):
+                world_pos = self._screen_to_world(event.pos)
+                scene.on_glass_click(world_pos)
+                print(f"[INPUT] Glass tapped at screen={event.pos} world={world_pos}")
+
         if event.type == pg.KEYDOWN:
             key = event.key
 
@@ -78,3 +85,19 @@ class InputHandler:
             elif key == pg.K_3:
                 name = sim.set_water_preset(2)
                 print(f"[SIM] Water: {name}")
+
+    def _screen_to_world(self, screen_pos):
+        sw, sh = pg.display.get_surface().get_size()
+        sx, sy = screen_pos
+
+        nx = sx / sw
+        ny = sy / sh
+
+        # TANK_W dan TANK_H mengacu pada ukuran scene.py (5.0 dan 6.0)
+        TANK_W = 5.0
+        TANK_H = 6.0
+
+        wx = (nx * 2.0 - 1.0) * TANK_W
+        wy = (1.0 - ny) * TANK_H
+
+        return (wx, wy)

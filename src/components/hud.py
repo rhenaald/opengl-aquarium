@@ -542,3 +542,9 @@ class HUD:
         _outline(pill, (0, 0, PW, PH), (*col[:3], 85), w=1, r=PH // 2)
         pill.blit(label, (13, 5))
         dst.blit(pill, (px, py))
+
+
+# ── Scene interaction & updates ─────────────────────────────────────────────
+    def is_over(self, pos):
+        hud_rect = pg.Rect(0, 0, 220, pg.display.get_surface().get_height())
+        return hud_rect.collidepoint(pos)

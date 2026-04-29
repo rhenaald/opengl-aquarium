@@ -256,3 +256,7 @@ class AquariumScene:
         # Update static animated (seaweed)
         for obj in self.static_opaque:
             obj.update(dt, t)
+
+    def on_glass_click(self, world_pos):
+        for fish in self.fish:
+            fish.trigger_flee(world_pos)
