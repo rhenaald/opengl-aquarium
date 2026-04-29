@@ -124,69 +124,177 @@ class AquariumScene:
     def _build_decorations(self):
         app = self.app
 
-        # --- Rocks ---
+        self.static_opaque.append(SolidModel(
+            app, 'solid_cube',
+            pos=(-1.7, 0.18, -1.8), rot=(0, 28, 4),
+            scale=(1.40, 0.18, 0.46),
+            color=(0.28, 0.20, 0.13)))
+        # Port hull wall
+        self.static_opaque.append(SolidModel(
+            app, 'solid_cube',
+            pos=(-2.55, 0.38, -2.05), rot=(0, 28, 0),
+            scale=(1.35, 0.18, 0.06),
+            color=(0.30, 0.22, 0.14)))
+        # Starboard hull wall
+        self.static_opaque.append(SolidModel(
+            app, 'solid_cube',
+            pos=(-0.90, 0.38, -1.52), rot=(0, 28, 0),
+            scale=(1.35, 0.18, 0.06),
+            color=(0.30, 0.22, 0.14)))
+        # Broken mast 1 (standing, tilted)
+        self.static_opaque.append(SolidModel(
+            app, 'solid_cube',
+            pos=(-1.55, 1.05, -1.68), rot=(0, 28, 18),
+            scale=(0.055, 1.05, 0.055),
+            color=(0.33, 0.24, 0.16)))
+        # Broken mast 2 (fallen on deck)
+        self.static_opaque.append(SolidModel(
+            app, 'solid_cube',
+            pos=(-2.15, 0.26, -2.05), rot=(0, 28, 72),
+            scale=(0.05, 0.65, 0.05),
+            color=(0.31, 0.23, 0.15)))
+        # Cargo barrel (sphere)
+        self.static_opaque.append(SolidModel(
+            app, 'solid_sphere',
+            pos=(-2.25, 0.22, -1.45), rot=(0, 0, 0),
+            scale=(0.18, 0.22, 0.18),
+            color=(0.30, 0.22, 0.13)))
+        # Treasure chest body
+        self.static_opaque.append(SolidModel(
+            app, 'solid_cube',
+            pos=(-1.15, 0.13, -2.15), rot=(0, 14, 0),
+            scale=(0.18, 0.12, 0.14),
+            color=(0.30, 0.21, 0.10)))
+        # Treasure chest lid (slightly open)
+        self.static_opaque.append(SolidModel(
+            app, 'solid_cube',
+            pos=(-1.15, 0.28, -2.15), rot=(0, 14, -18),
+            scale=(0.18, 0.05, 0.14),
+            color=(0.38, 0.27, 0.13)))
+        # Coral on wreck — warm red/orange growing from hull
+        self.static_opaque.append(SolidModel(
+            app, 'coral',
+            pos=(-1.50, 0.75, -1.92), rot=(0, 0, 0),
+            scale=(0.13, 0.65, 0.13),
+            color=(0.95, 0.32, 0.22)))
+        self.static_opaque.append(SolidModel(
+            app, 'coral',
+            pos=(-2.05, 0.55, -1.72), rot=(0, 0, 0),
+            scale=(0.10, 0.42, 0.10),
+            color=(0.90, 0.55, 0.14)))
+        self.static_opaque.append(SolidModel(
+            app, 'coral',
+            pos=(-1.25, 0.42, -2.05), rot=(0, 0, 0),
+            scale=(0.08, 0.32, 0.08),
+            color=(1.00, 0.75, 0.10)))
+        # Wreck base rock
+        self.static_opaque.append(SolidModel(
+            app, 'rock',
+            pos=(-2.40, 0.38, -2.30), rot=(0, 55, 0),
+            scale=(0.55, 0.38, 0.45),
+            color=(0.36, 0.32, 0.28)))
+
+        # Main spire — very tall, commanding
+        self.static_opaque.append(SolidModel(
+            app, 'coral',
+            pos=(1.8, 2.1, 1.8), rot=(0, 0, 0),
+            scale=(0.28, 2.1, 0.28),
+            color=(0.90, 0.20, 0.48)))
+        # Branch spires at varied heights
+        self.static_opaque.append(SolidModel(
+            app, 'coral',
+            pos=(1.35, 1.50, 2.25), rot=(0, 0, 0),
+            scale=(0.18, 1.50, 0.18),
+            color=(0.95, 0.42, 0.18)))
+        self.static_opaque.append(SolidModel(
+            app, 'coral',
+            pos=(2.30, 1.10, 1.45), rot=(0, 0, 0),
+            scale=(0.15, 1.10, 0.15),
+            color=(1.00, 0.72, 0.08)))
+        self.static_opaque.append(SolidModel(
+            app, 'coral',
+            pos=(2.05, 0.65, 2.35), rot=(0, 0, 0),
+            scale=(0.10, 0.65, 0.10),
+            color=(0.80, 0.16, 0.68)))
+        self.static_opaque.append(SolidModel(
+            app, 'coral',
+            pos=(1.50, 0.42, 1.40), rot=(0, 0, 0),
+            scale=(0.08, 0.42, 0.08),
+            color=(0.95, 0.58, 0.22)))
+        # Base rocks anchoring the spire cluster
+        self.static_opaque.append(SolidModel(
+            app, 'rock',
+            pos=(1.80, 0.40, 1.80), rot=(0, 42, 0),
+            scale=(0.58, 0.40, 0.52),
+            color=(0.38, 0.34, 0.30)))
+        self.static_opaque.append(SolidModel(
+            app, 'rock',
+            pos=(2.10, 0.22, 2.15), rot=(0, 115, 0),
+            scale=(0.30, 0.22, 0.28),
+            color=(0.34, 0.30, 0.26)))
+
         rock_configs = [
-            dict(pos=(-3.2, 0.35, -2.8), scale=(0.55, 0.40, 0.45),
-                 rot=(0,  25, 0), color=(0.38, 0.34, 0.30)),
-            dict(pos=(-3.0, 0.18, -2.5), scale=(0.30, 0.22, 0.28),
-                 rot=(0,  70, 0), color=(0.32, 0.29, 0.26)),
-            dict(pos=(3.5, 0.30, -3.2), scale=(0.50, 0.35, 0.40),
-                 rot=(0, 130, 0), color=(0.40, 0.36, 0.32)),
-            dict(pos=(3.2, 0.45, -2.8), scale=(0.65, 0.50, 0.55),
-                 rot=(0, 200, 0), color=(0.35, 0.31, 0.28)),
-            dict(pos=(0.5, 0.22,  3.8), scale=(0.42, 0.30, 0.38),
-                 rot=(0,  45, 0), color=(0.42, 0.38, 0.34)),
-            dict(pos=(-1.0, 0.18,  3.6), scale=(0.28, 0.20, 0.24),
-                 rot=(0,  90, 0), color=(0.36, 0.32, 0.28)),
+            # Left wall: big rock with a smaller one sitting on top
+            dict(pos=(-3.50, 0.45, 0.60), scale=(0.68, 0.45, 0.55), rot=(0, 22, 0),  color=(0.38, 0.34, 0.30)),
+            dict(pos=(-3.25, 0.92, 0.35), scale=(0.36, 0.36, 0.33), rot=(0, 68, 8),  color=(0.34, 0.30, 0.26)),  # on top
+            dict(pos=(-3.62, 0.20, -0.20), scale=(0.28, 0.20, 0.26), rot=(0, 110, 0), color=(0.32, 0.29, 0.25)),
+            # Right back wall
+            dict(pos=(3.30, 0.52, -2.90), scale=(0.72, 0.52, 0.62), rot=(0, 148, 0), color=(0.40, 0.36, 0.32)),
+            dict(pos=(3.55, 0.25, -2.45), scale=(0.32, 0.25, 0.30), rot=(0, 198, 0), color=(0.36, 0.32, 0.27)),
+            # Front-right, mid depth — draws eye via rule of 3rds
+            dict(pos=(3.10, 0.38, 3.40), scale=(0.50, 0.38, 0.46), rot=(0, 62, 0),   color=(0.42, 0.38, 0.34)),
         ]
         for cfg in rock_configs:
             self.static_opaque.append(SolidModel(
                 app, 'rock',
                 pos=cfg['pos'], rot=cfg['rot'],
-                scale=cfg['scale'], color=cfg['color']
-            ))
+                scale=cfg['scale'], color=cfg['color']))
 
-        # --- Coral columns ---
-        coral_configs = [
-            dict(pos=(-2.5, 1.0, -3.5), scale=(0.18, 1.0, 0.18),
-                 color=(0.95, 0.35, 0.25)),
-            dict(pos=(-2.3, 0.7, -3.3), scale=(0.12, 0.7, 0.12),
-                 color=(0.95, 0.60, 0.20)),
-            dict(pos=(-2.7, 0.6, -3.2), scale=(0.10, 0.55, 0.10),
-                 color=(1.00, 0.80, 0.10)),
-            dict(pos=(3.2, 1.2, -2.5), scale=(0.20, 1.2, 0.20),
-                 color=(0.90, 0.25, 0.50)),
-            dict(pos=(3.0, 0.8, -2.2), scale=(0.14, 0.8, 0.14),
-                 color=(0.80, 0.20, 0.70)),
-            dict(pos=(0.0, 0.9,  4.0), scale=(
-                0.16, 0.9, 0.16), color=(1.00, 0.55, 0.10)),
+        # ════════════════════════════════════════════════════════════════════════
+        # ACCENT CORALS — scattered, varied heights 0.4 – 1.5
+        # ════════════════════════════════════════════════════════════════════════
+
+        coral_accents = [
+            # Right back cluster
+            dict(pos=(3.10, 1.50, -3.10), scale=(0.17, 1.50, 0.17), color=(0.90, 0.24, 0.50)),
+            dict(pos=(3.40, 0.90, -2.75), scale=(0.12, 0.90, 0.12), color=(0.80, 0.18, 0.70)),
+            dict(pos=(2.75, 0.58, -3.40), scale=(0.09, 0.58, 0.09), color=(1.00, 0.55, 0.10)),
+            # Left-front
+            dict(pos=(-3.00, 1.20, 2.85), scale=(0.16, 1.20, 0.16), color=(0.95, 0.35, 0.25)),
+            dict(pos=(-2.65, 0.72, 3.20), scale=(0.11, 0.72, 0.11), color=(0.95, 0.60, 0.20)),
+            # Back-center pushed to right 1/3
+            dict(pos=(1.60, 1.35, -4.05), scale=(0.20, 1.35, 0.20), color=(1.00, 0.40, 0.15)),
+            dict(pos=(1.90, 0.78, -3.72), scale=(0.13, 0.78, 0.13), color=(0.85, 0.22, 0.55)),
         ]
-        for cfg in coral_configs:
+        for cfg in coral_accents:
             self.static_opaque.append(SolidModel(
                 app, 'coral',
                 pos=cfg['pos'], rot=(0, 0, 0),
-                scale=cfg['scale'], color=cfg['color']
-            ))
+                scale=cfg['scale'], color=cfg['color']))
 
-        # --- Seaweed clusters ---
         seaweed_positions = [
-            (-1.5, 0.0, -4.2), (-1.2, 0.0, -4.0), (-1.8, 0.0, -3.8),
-            (2.0, 0.0, -4.0), (2.3, 0.0, -3.8),
-            (-4.0, 0.0,  1.5), (-3.8, 0.0,  1.2), (-4.2, 0.0,  1.8),
-            (4.0, 0.0,  2.0), (3.8, 0.0,  2.3),
-            (0.5, 0.0,  4.2), (0.2, 0.0,  4.0),
+            # Around wreck
+            (-2.55, 0.0, -2.40), (-2.30, 0.0, -2.60), (-1.20, 0.0, -2.55),
+            (-1.05, 0.0, -2.30), (-2.65, 0.0, -1.45),
+            # Around coral spire
+            (1.20, 0.0, 2.55), (2.55, 0.0, 1.30), (1.55, 0.0, 3.05),
+            # Left wall
+            (-4.05, 0.0,  1.55), (-3.82, 0.0,  1.20), (-4.25, 0.0,  1.85),
+            # Back right
+            (3.52, 0.0, -3.52), (3.20, 0.0, -3.82),
+            # Front scattered
+            (0.55, 0.0, 4.25), (-0.45, 0.0, 4.05),
         ]
-        for i, (x, y, z) in enumerate(seaweed_positions):
-            h = random.uniform(1.2, 2.8)
+        for x, y, z in seaweed_positions:
+            h = random.uniform(1.0, 3.2)
             phase = random.uniform(0, math.tau)
             self.static_opaque.append(Seaweed(
                 app, pos=(x, h * 0.5, z),
                 scale=(0.08, h * 0.5, 0.08),
-                phase=phase
-            ))
+                phase=phase))
 
-        # --- Gravel accent (small scattered cubes on sand) ---
-        for _ in range(18):
+        # ── Gravel accent ─────────────────────────────────────────────────────
+        for _ in range(14):
             gx = random.uniform(-4.3, 4.3)
             gz = random.uniform(-4.3, 4.3)
             gs = random.uniform(0.06, 0.14)
@@ -196,8 +304,8 @@ class AquariumScene:
                 pos=(gx, gs * 0.5, gz),
                 rot=(random.uniform(0, 360), random.uniform(0, 360), 0),
                 scale=(gs, gs * 0.6, gs),
-                color=(gray, gray * 0.95, gray * 0.90)
-            ))
+                color=(gray, gray * 0.95, gray * 0.90)))
+
 
     def _spawn_initial_fish(self):
         for i in range(5):
