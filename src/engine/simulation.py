@@ -1,4 +1,17 @@
 class SimulationState:
+    PRESENTATION_LAYERS = [
+        ("render_skybox", "Skybox"),
+        ("render_opaque_scene", "Opaque Scene"),
+        ("render_fish", "Fish"),
+        ("render_bubbles", "Bubbles"),
+        ("render_water_volume", "Water Volume"),
+        ("render_water_surface", "Water Surface"),
+        ("render_glass", "Glass"),
+    ]
+    PRESENTATION_EFFECTS = [
+        ("enable_lighting", "Lighting/Caustics"),
+    ]
+
     WATER_PRESETS = [
         (0.04, 0.18, 0.32),
         (0.05, 0.25, 0.22),
@@ -24,6 +37,17 @@ class SimulationState:
         self.max_fish = 8
 
         self.caustic_speed = 0.5
+
+        for attr, _name in self.PRESENTATION_LAYERS + self.PRESENTATION_EFFECTS:
+            setattr(self, attr, True)
+
+    def presentation_items(self):
+        return self.PRESENTATION_LAYERS + self.PRESENTATION_EFFECTS
+
+    def toggle_presentation_item(self, attr):
+        value = not getattr(self, attr)
+        setattr(self, attr, value)
+        return value
 
     def toggle_pause(self):
         self.paused = not self.paused

@@ -57,14 +57,25 @@ class BaseModel:
 
     def _upload_common(self):
         p = self.program
+        if self.sim.enable_lighting:
+            light_ia = self.light.Ia
+            light_id = self.light.Id
+            light_is = self.light.Is
+            caustic_strength = 0.35 * self.sim.light_intensity
+        else:
+            light_ia = glm.vec3(0.45)
+            light_id = glm.vec3(0.0)
+            light_is = glm.vec3(0.0)
+            caustic_strength = 0.0
+
         _set(p, 'm_view',       self.camera.m_view)
         _set(p, 'm_model',      self.m_model)
         _set(p, 'cam_pos',      self.camera.position)
         _set(p, 'u_time',       self.app.time)
         # Lighting may change dynamically
-        _set(p, 'light.Ia',     self.light.Ia)
-        _set(p, 'light.Id',     self.light.Id)
-        _set(p, 'light.Is',     self.light.Is)
+        _set(p, 'light.Ia',     light_ia)
+        _set(p, 'light.Id',     light_id)
+        _set(p, 'light.Is',     light_is)
         # Water color / fog
         wc = self.sim.water_color
         _set(p, 'u_water_color', glm.vec3(wc))
@@ -73,7 +84,7 @@ class BaseModel:
         _set(p, 'u_sun_dir', glm.normalize(glm.vec3(0.0, -1.0, 0.22)))
         _set(p, 'u_sun_cutoff', math.cos(math.radians(34.0)))
         _set(p, 'u_water_surface_y', 6.0)
-        _set(p, 'u_caustic_strength', 0.35 * self.sim.light_intensity)
+        _set(p, 'u_caustic_strength', caustic_strength)
         _set(p, 'u_caustic_speed', self.sim.caustic_speed)
 
     def update(self, dt, t): pass

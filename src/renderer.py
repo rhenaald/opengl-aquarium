@@ -155,19 +155,26 @@ class AquariumRenderer:
         scene = self.scene
         ctx = self.ctx
         cam = self.app.camera
+        sim = self.app.sim
 
         # ── 1. Skybox background ───────────────────────────────────────
-        ctx.enable_only(0)
-        self.skybox.render()
+        if sim.render_skybox:
+            ctx.enable_only(0)
+            self.skybox.render()
 
         # ── 2. Opaque pass ─────────────────────────────────────────────
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.CULL_FACE)
-        for obj in scene.static_opaque:
-            obj.render()
-        for f in scene.fish:
-            f.render()
+        if sim.render_opaque_scene:
+            for obj in scene.static_opaque:
+                obj.render()
+        if sim.render_fish:
+            for f in scene.fish:
+                f.render()
 
         # ── 3. Bubbles — transparent, no back-face culling ─────────────
+        if not sim.render_bubbles:
+            return
+
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
         ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
 
@@ -183,6 +190,9 @@ class AquariumRenderer:
             b.render()
 
     def _render_water_volume(self):
+        if not self.app.sim.render_water_volume:
+            return
+
         self.ctx.enable_only(mgl.BLEND | mgl.CULL_FACE)
         self.ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
         p = self.app.camera.position
@@ -199,13 +209,18 @@ class AquariumRenderer:
         scene = self.scene
         ctx = self.ctx
         cam = self.app.camera
+        sim = self.app.sim
 
         # ── 3.5. Water surface — transparent, no culling, no depth write ─
-        ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
-        ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
-        ctx.depth_func = '<='
-        scene.water_surface.render()
-        ctx.depth_func = '<'
+        if sim.render_water_surface:
+            ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)
+            ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
+            ctx.depth_func = '<='
+            scene.water_surface.render()
+            ctx.depth_func = '<'
+
+        if not sim.render_glass:
+            return
 
         # ── 5. Glass panels — refraction + reflection, sorted back-to-front ─
         ctx.enable_only(self.ctx.DEPTH_TEST | self.ctx.BLEND)

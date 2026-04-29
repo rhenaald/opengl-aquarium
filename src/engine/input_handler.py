@@ -86,6 +86,21 @@ class InputHandler:
                 name = sim.set_water_preset(2)
                 print(f"[SIM] Water: {name}")
 
+            elif key in (
+                pg.K_F1, pg.K_F2, pg.K_F3, pg.K_F4,
+                pg.K_F5, pg.K_F6, pg.K_F7, pg.K_F8,
+            ):
+                index = (
+                    pg.K_F1, pg.K_F2, pg.K_F3, pg.K_F4,
+                    pg.K_F5, pg.K_F6, pg.K_F7, pg.K_F8,
+                ).index(key)
+                items = sim.presentation_items()
+                if index < len(items):
+                    attr, name = items[index]
+                    enabled = sim.toggle_presentation_item(attr)
+                    state = "ON" if enabled else "OFF"
+                    print(f"[LAYER] {name}: {state}")
+
     def _screen_to_world(self, screen_pos):
         sw, sh = pg.display.get_surface().get_size()
         sx, sy = screen_pos

@@ -1,9 +1,7 @@
 # Project Memory
 
 ## Project
-OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, PyGLM, NumPy. Entry `main.py`. Opens 1280x720 OpenGL 3.3 core window. Renders 3D fish tank: sand, rocks, coral, seaweed, fish, bubbles, glass walls, skybox, water volume fog, projected caustics, lighting, camera modes, Pygame HUD overlay.
-
-Memory synced through commit `7ddb410` (`fix(water): fix random white speckles appearing in the water volume cube`). Previous memory baseline was `53c600799ebcb9c83928d62916fdd5effed26d69`.
+OpenGL Aquarium: Python 3.11 interactive aquarium sim using Pygame, ModernGL, PyGLM, NumPy. Entry `main.py`. Opens 1280x720 OpenGL 3.3 core window. Renders 3D fish tank: sand, rocks, coral, seaweed, fish, bubbles, glass walls, skybox, water volume fog, projected caustics, lighting, camera modes, Pygame HUD overlay, presentation layer toggles.
 
 ## Commands
 - Install deps: `uv sync` or `pip install -r requirements.txt`.
@@ -16,7 +14,7 @@ Memory synced through commit `7ddb410` (`fix(water): fix random white speckles a
 
 ## Architecture
 - `main.py` owns `AquariumEngine`, window/context setup, frame loop, HUD overlay texture, lifecycle.
-- `src/renderer.py` render passes: skybox/opaque/bubbles into offscreen scene FBO, copy to composite FBO, depth-aware water volume tint into composite, copy to screen, then water surface and glass panels last.
+- `src/renderer.py` render passes: skybox/opaque/fish/bubbles into offscreen scene FBO, copy to composite FBO, depth-aware water volume tint into composite, copy to screen, then water surface and glass panels last. Each pass now has a presentation toggle.
 - `src/objects/scene.py` builds tank, decorations, initial fish/bubbles, runtime spawn/update.
 - `src/objects/model.py` renderable models: `BaseModel`, `SolidModel`, `GlassPanel`, `GlueSeam`, `SandFloor`, `WaterSurface`, `Seaweed`, `Fish`, `Bubble`.
 - `src/objects/skybox.py` loads cubemap faces from `assets/materials/skybox/sky_10_cubemap_2k/` and renders the background skybox.
@@ -24,10 +22,10 @@ Memory synced through commit `7ddb410` (`fix(water): fix random white speckles a
 - `src/engine/vbo.py` builds procedural meshes: skybox cube, cube, plane, displaced sand bed, water grid, sphere, cylinder, glass panel, fish body.
 - `src/engine/vao.py` maps VBOs to shader programs + model VAO names.
 - `src/engine/shader_program.py` loads GLSL from `shaders/`.
-- `src/engine/simulation.py` stores mutable sim state: pause, wave speed, bubble count, light intensity, water preset, fish target, caustic speed.
-- `src/engine/input_handler.py` routes Pygame events to camera, HUD slider, keyboard controls.
+- `src/engine/simulation.py` stores mutable sim state: pause, wave speed, bubble count, light intensity, water preset, fish target, caustic speed, presentation layer flags, lighting/caustics toggle.
+- `src/engine/input_handler.py` routes Pygame events to camera, HUD slider, keyboard controls, `F1-F8` presentation toggles.
 - `src/components/camera.py` supports orbit + FPS mode.
-- `src/components/hud.py` draws Pygame HUD surface + handles fish target slider.
+- `src/components/hud.py` draws Pygame HUD surface + handles fish target slider and live layer status panel.
 - `src/components/lighting.py` stores point light values + recomputes ambient/diffuse/specular intensity.
 
 ## Runtime Flow
@@ -55,6 +53,7 @@ Memory synced through commit `7ddb410` (`fix(water): fix random white speckles a
 - `1/2/3`: water color preset.
 - `ESC`: quit.
 - HUD fish slider adjusts `app.sim.max_fish` from 0 to 16.
+- `F1/F2/F3/F4/F5/F6/F7/F8`: toggle skybox, opaque scene, fish, bubbles, water volume, water surface, glass, lighting/caustics.
 
 ## Rendering Notes
 - Opaque pass uses depth test + cull face.
@@ -64,6 +63,7 @@ Memory synced through commit `7ddb410` (`fix(water): fix random white speckles a
 - Water volume proxy cube draws once per pixel with culling enabled: culls front faces when camera is outside water volume, culls back faces when camera is inside, then restores default back-face culling.
 - Bubble pass uses depth test + alpha blend, culling disabled.
 - Water surface and glass pass use depth test + alpha blend, `depth_func` temporarily `<=`.
+- Presentation toggles can disable any render layer independently; lighting toggle leaves scene visible with ambient-only shading and zero caustics.
 - Glass pass samples `composite_color`, so refraction sees water volume tint.
 - Transparent objects sorted by squared camera distance, farthest first via negative distance key.
 - `_set()` in `model.py` silently skips missing shader uniforms; shared upload works across programs with different active uniforms.
@@ -86,7 +86,7 @@ Memory synced through commit `7ddb410` (`fix(water): fix random white speckles a
 
 ## HUD Notes
 - HUD renders with Pygame into RGBA surface, flips vertically, uploads to ModernGL texture, draws after 3D.
-- HUD reads `app.scene.objects`, `app.camera.use_orbit`, `app.clock.get_fps()`, `app.sim`.
+- HUD reads `app.scene.objects`, `app.camera.use_orbit`, `app.clock.get_fps()`, `app.sim`, and presentation flags for live ON/OFF labels.
 - HUD uses `pygame.gfxdraw` + Pygame fonts only.
 - Design spec: `docs/superpowers/specs/2026-04-28-hud-feature-design.md`. Implementation richer: top bar, live counters, object list, controls, mode pill, interactive fish slider.
 
