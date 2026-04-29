@@ -134,6 +134,7 @@ class HUD:
         self._draw_object_panel(hud)
         self._draw_controls_panel(hud)
         self._draw_mode_pill(hud)
+        self._draw_layers_panel(hud)
         self._draw_hamburger_menu(hud)
 
         # Flip Y — kompensasi OpenGL (origin bawah-kiri) vs Pygame (origin atas-kiri)
@@ -272,6 +273,7 @@ class HUD:
                 ("SPACE",  "Pause / Play"),
                 ("B",      "Spawn bubble"),
                 ("F",      "Spawn fish"),
+                ("F1-F8",  "Layer toggles"),
                 ("ESC",    "Quit"),
             ]
         else:
@@ -284,6 +286,7 @@ class HUD:
                 ("SPACE",  "Pause / Play"),
                 ("B",      "Spawn bubble"),
                 ("F",      "Spawn fish"),
+                ("F1-F8",  "Layer toggles"),
                 ("ESC",    "Quit"),
             ]
 
@@ -542,6 +545,44 @@ class HUD:
         _outline(pill, (0, 0, PW, PH), (*col[:3], 85), w=1, r=PH // 2)
         pill.blit(label, (13, 5))
         dst.blit(pill, (px, py))
+
+    def _draw_layers_panel(self, dst):
+        sim = self.app.sim
+        items = sim.presentation_items()
+
+        ROW_H = FS_XS + self.GAP + 3
+        PANEL_W = 240
+        PANEL_H = self.INNER * 2 + FS_XS + 14 + len(items) * ROW_H
+        px = self.W - self.PAD - PANEL_W
+        py = 34 + 44
+
+        panel = _surf(PANEL_W, PANEL_H)
+        _panel(panel, (0, 0, PANEL_W, PANEL_H), radius=12)
+
+        hdr = self.f_xs.render("LAYERS", True, GLOW_CYAN)
+        panel.blit(hdr, (self.INNER, self.INNER))
+
+        dy = self.INNER + FS_XS + 7
+        _hline(panel, self.INNER, PANEL_W - self.INNER, dy, (*GLOW_CYAN[:3], 40))
+        _hline(panel, self.INNER, PANEL_W - self.INNER, dy + 1, (*GLOW_CYAN[:3], 12))
+
+        ry = dy + 10
+        for idx, (attr, name) in enumerate(items, start=1):
+            enabled = getattr(sim, attr)
+            col = GLOW_GREEN if enabled else TEXT_DIM
+            key = f"F{idx}"
+            state = "ON" if enabled else "OFF"
+
+            key_surf = self.f_xs.render(key, True, GLOW_CYAN)
+            name_surf = self.f_xs.render(name.upper(), True, TEXT_MID if enabled else TEXT_DIM)
+            state_surf = self.f_xs.render(state, True, col)
+
+            panel.blit(key_surf, (self.INNER, ry))
+            panel.blit(name_surf, (self.INNER + 30, ry))
+            panel.blit(state_surf, (PANEL_W - self.INNER - state_surf.get_width(), ry))
+            ry += ROW_H
+
+        dst.blit(panel, (px, py))
 
 
 # ── Scene interaction & updates ─────────────────────────────────────────────
