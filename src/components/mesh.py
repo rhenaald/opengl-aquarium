@@ -1,5 +1,4 @@
-from vao import VAO
-
+from src.engine.vao import VAO
 
 class Mesh:
     def __init__(self, app):

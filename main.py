@@ -1,86 +1,171 @@
 import sys
+import numpy as np
 import pygame as pg
 import moderngl as mgl
+import pygame as pg
 
-from camera import Camera
-from point_light import PointLight
-from mesh import Mesh
-from scene import Scene
-from scene_renderer import SceneRenderer
+from src.components.camera import Camera
+from src.components.lighting import AquariumLight
+from src.components.mesh import Mesh
+from src.engine.input_handler import InputHandler
+from src.engine.simulation import SimulationState
+from src.objects.scene import AquariumScene
+from src.renderer import AquariumRenderer
+from src.components.hud import HUD
 
+class AquariumEngine:
+    WIN_SIZE = (1280, 720)
 
-class SxvxnEngine:
-    def __init__(self, win_size=(1280, 720)):
+    def __init__(self):
         pg.init()
-        pg.display.set_caption("Modern GL Basics")
-        self.WIN_SIZE = win_size
+        pg.display.set_caption("Aquarium 3D - Interactive Simulation")
 
         pg.display.gl_set_attribute(pg.GL_CONTEXT_MAJOR_VERSION, 3)
         pg.display.gl_set_attribute(pg.GL_CONTEXT_MINOR_VERSION, 3)
-        pg.display.gl_set_attribute(pg.GL_CONTEXT_PROFILE_MASK, pg.GL_CONTEXT_PROFILE_CORE)
-        pg.display.set_mode(self.WIN_SIZE, flags=pg.OPENGL | pg.DOUBLEBUF)
+        pg.display.gl_set_attribute(
+            pg.GL_CONTEXT_PROFILE_MASK, pg.GL_CONTEXT_PROFILE_CORE
+        )
+        pg.display.gl_set_attribute(pg.GL_DOUBLEBUFFER, 1)
+        self.screen = pg.display.set_mode(self.WIN_SIZE, flags=pg.OPENGL | pg.DOUBLEBUF)
 
-        pg.event.set_grab(True)
-        pg.mouse.set_visible(False)
+        pg.display.gl_set_attribute(pg.GL_SWAP_CONTROL, 1)
+        pg.mouse.set_visible(True)
+        pg.event.set_grab(False)
 
         self.ctx = mgl.create_context(require=330)
-        self.ctx.enable(flags=mgl.DEPTH_TEST | mgl.CULL_FACE)
-        self.ctx.gc_mode = 'auto'
+        self.ctx.enable(flags=mgl.DEPTH_TEST | mgl.CULL_FACE | mgl.BLEND)
+        self.ctx.blend_func = mgl.SRC_ALPHA, mgl.ONE_MINUS_SRC_ALPHA
+        self.ctx.gc_mode = "auto"
 
         self.clock = pg.time.Clock()
         self.time = 0.0
-        self.delta_time = 0.0
-        self.background_color = (0.10, 0.12, 0.16)
+        self.delta_time = 16.0
 
-        self.light = PointLight(position=(6.0, 8.0, 6.0), color=(1.0, 1.0, 1.0), intensity=1.2)
+        self.sim = SimulationState()
+        self.light = AquariumLight()
         self.camera = Camera(self)
         self.mesh = Mesh(self)
-        self.scene = Scene(self)
-        self.scene_renderer = SceneRenderer(self)
+        self.scene = AquariumScene(self)
+        self.input = InputHandler(self)
+        self.renderer = AquariumRenderer(self)
+        self.hud      = HUD(self)
+
+        self._init_hud_overlay()
+
+        print(self._controls_text())
+
+    def _init_hud_overlay(self):
+        self.hud_surface = pg.Surface(self.WIN_SIZE, pg.SRCALPHA)
+        self.hud_texture = self.ctx.texture(self.WIN_SIZE, 4, alignment=1)
+        self.hud_texture.filter = (mgl.NEAREST, mgl.NEAREST)
+
+        self.hud_program = self.ctx.program(
+            vertex_shader='''
+                #version 330
+                in vec2 in_pos;
+                in vec2 in_uv;
+                out vec2 v_uv;
+                void main() {
+                    gl_Position = vec4(in_pos, 0.0, 1.0);
+                    v_uv = in_uv;
+                }
+            ''',
+            fragment_shader='''
+                #version 330
+                uniform sampler2D u_texture;
+                in vec2 v_uv;
+                out vec4 f_color;
+                void main() {
+                    f_color = texture(u_texture, v_uv);
+                }
+            ''',
+        )
+        self.hud_program['u_texture'].value = 0
+
+        quad_data = np.array([
+            -1.0,  1.0, 0.0, 1.0,
+             1.0,  1.0, 1.0, 1.0,
+            -1.0, -1.0, 0.0, 0.0,
+             1.0, -1.0, 1.0, 0.0,
+        ], dtype='f4')
+
+        self.hud_vbo = self.ctx.buffer(quad_data.tobytes())
+        self.hud_vao = self.ctx.vertex_array(
+            self.hud_program,
+            [(self.hud_vbo, '2f 2f', 'in_pos', 'in_uv')]
+        )
+
+    def _render_hud_overlay(self):
+        self.hud_surface.fill((0, 0, 0, 0))
+        self.hud.render(self.hud_surface)
+        pixels = pg.image.tostring(self.hud_surface, 'RGBA', False)
+        self.hud_texture.write(pixels)
+
+        self.ctx.enable_only(self.ctx.BLEND)
+        self.ctx.blend_func = self.ctx.SRC_ALPHA, self.ctx.ONE_MINUS_SRC_ALPHA
+        self.hud_texture.use(location=0)
+        self.hud_vao.render(mode=mgl.TRIANGLE_STRIP)
+
+    def _controls_text(self):
+        return (
+            "\n=== AQUARIUM 3D CONTROLS ===\n"
+            "  RMB drag        - Orbit rotate\n"
+            "  Scroll Wheel    - Zoom\n"
+            "  MMB drag        - Pan\n"
+            "  TAB             - Toggle FPS / Orbit\n"
+            "  WASD + Q/E      - FPS movement\n"
+            "  R               - Reset camera\n"
+            "  SPACE           - Pause / Play\n"
+            "  B               - Spawn bubble\n"
+            "  F               - Spawn fish\n"
+            "  UP/DOWN         - Wave speed +/-\n"
+            "  LEFT/RIGHT      - Bubble count +/-\n"
+            "  Z/X             - Light intensity +/-\n"
+            "  1/2/3           - Water color preset\n"
+            "  F1              - Toggle skybox\n"
+            "  F2              - Toggle opaque scene\n"
+            "  F3              - Toggle fish\n"
+            "  F4              - Toggle bubbles\n"
+            "  F5              - Toggle water volume\n"
+            "  F6              - Toggle water surface\n"
+            "  F7              - Toggle glass\n"
+            "  F8              - Toggle lighting / caustics\n"
+            "  ESC             - Quit\n"
+            "============================\n"
+        )
 
     def check_events(self):
         for event in pg.event.get():
-            if event.type == pg.QUIT or (event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE):
-                self.destroy()
-                pg.quit()
-                sys.exit()
+            if event.type == pg.QUIT:
+                self.quit()
+            self.input.handle_event(event)
 
-            if event.type == pg.KEYDOWN and event.key == pg.K_TAB:
-                self.camera.use_orbit = not self.camera.use_orbit
-                self.camera.set_default()
-
-            if event.type == pg.KEYDOWN and event.key == pg.K_BACKQUOTE:
-                visible = not pg.mouse.get_visible()
-                pg.mouse.set_visible(visible)
-                pg.event.set_grab(not visible)
-
-            if event.type == pg.MOUSEBUTTONDOWN and self.camera.use_orbit:
-                if event.button == 4:
-                    self.camera.orbit_radius = max(2.0, self.camera.orbit_radius - 0.5)
-                elif event.button == 5:
-                    self.camera.orbit_radius = min(40.0, self.camera.orbit_radius + 0.5)
+    def update(self):
+        self.time = pg.time.get_ticks() * 0.001
+        if not self.sim.paused:
+            self.scene.update(self.delta_time, self.time)
+        self.camera.update()
 
     def render(self):
-        self.ctx.clear(color=self.background_color)
-        self.scene_renderer.render()
+        self.ctx.clear(color=(0.02, 0.06, 0.12, 1.0))
+        self.renderer.render()
+        self._render_hud_overlay()
         pg.display.flip()
 
-    def get_time(self):
-        self.time = pg.time.get_ticks() * 0.001
-
-    def destroy(self):
+    def quit(self):
         self.mesh.destroy()
-        self.scene_renderer.destroy()
+        self.renderer.destroy()
+        pg.quit()
+        sys.exit()
 
     def run(self):
         while True:
-            self.get_time()
             self.check_events()
-            self.camera.update()
+            self.update()
             self.render()
             self.delta_time = self.clock.tick(60)
 
 
-if __name__ == '__main__':
-    app = SxvxnEngine()
+if __name__ == "__main__":
+    app = AquariumEngine()
     app.run()
