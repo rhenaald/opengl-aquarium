@@ -93,13 +93,6 @@ graph TD
 | **Package Manager** | uv (primary) / pip |
 | **Shading Language** | GLSL #version 330 core |
 
-### Keputusan Arsitektur
-
-- **ModernGL vs raw OpenGL**: ModernGL dipilih karena menyediakan wrapper Pythonic yang clean untuk OpenGL 3.3 Core, menghindari boilerplate ekstensif PyOpenGL, dengan performa mendekati native.
-- **Mesh prosedural penuh**: Tidak ada model 3D eksternal — seluruh geometri (ikan, koral, bubble, tank, sand bed) digenerasi di kode Python menggunakan VBO numpy. Ini memudahkan parameterisasi dan animasi vertex shader.
-- **Multi-pass FBO pipeline**: Render dipisah menjadi 3 pass (scene → composite → screen) untuk memungkinkan efek screen-space (refraksi kaca, Beer-Lambert volume) tanpa konflik depth buffer.
-- **Pygame HUD overlay**: UI dirender sebagai Pygame surface (SRCALPHA), dikonversi ke texture ModernGL, lalu overlay sebagai full-screen quad. Ini memungkinkan penggunaan font dan widget Pygame yang mature tanpa dependency UI tambahan.
-
 ## 🎨 Program Shader
 
 | Program | Vertex | Fragment | Fungsi |
@@ -129,7 +122,7 @@ Proyek ini mengimplementasikan **deferred-style multi-pass rendering** dengan 3 
 
 3. **Screen Pass** — Salin composite ke screen, render water surface (transparent, `depth_func <=`), lalu glass panels (screen-space refraction ambil sampel composite color, reflection ambil sampel skybox, diurutkan back-to-front).
 
-### Efek Kunci
+### Efek Utama
 
 - **Animasi Ikan**: Travelling sine wave dari kepala ke ekor dengan amplitude envelope. Normal direkalkulasi via Jacobian matrix di vertex shader.
 - **Procedural Caustics**: Voronoi noise diproyeksikan dari arah matahari, dengan spotlight falloff + depth fade, diterapkan di fragment shader pasir.
@@ -265,7 +258,7 @@ aquarium-opengl/
 │   │   ├── scene.py           # Konstruksi tank + runtime management
 │   │   ├── model.py           # 7 kelas model renderable
 │   │   ├── skybox.py          # Cubemap skybox
-│   │   └── water_volume.py    # Beer-Lambert volumetric water
+│   │   └─ water_volume.py    # Beer-Lambert volumetric water
 │   └── mesh/
 │       └── fish_body_vbo.py   # Ikan mesh detail tinggi (VBO)
 │
@@ -298,6 +291,21 @@ Proyek ini belum memiliki automated tests. Verifikasi dilakukan secara visual de
 ## 🤝 Kontribusi
 
 Kontribusi sangat diterima! Silakan buka *issue* atau *pull request* untuk perbaikan, fitur baru, atau optimisasi.
+
+### Contributors
+
+Terima kasih kepada seluruh kontributor yang telah berkontribusi pada proyek ini:
+
+| Avatar | Username | Profil |
+|--------|----------|--------|
+| 👤 | **raihannurhidayat** | [@raihannurhidayat](https://github.com/raihannurhidayat) |
+| 👤 | **severusDude** | [@severusDude](https://github.com/severusDude) |
+| 👤 | **Rigelyon** | [@Rigelyon](https://github.com/Rigelyon) |
+| 👤 | **rhenaald** | [@rhenaald](https://github.com/rhenaald) |
+| 🤖 | **Copilot** | [@Copilot](https://github.com/Copilot) *(AI Assistant)* |
+| 👤 | **studentsinformati...** | [@studentsinformati...](https://github.com/studentsinformati...) |
+
+> **Catatan:** Username `studentsinformati...` tertampil terpotong pada screenshot. Silakan perbarui dengan username lengkap yang sesuai.
 
 ## 📄 Lisensi
 
