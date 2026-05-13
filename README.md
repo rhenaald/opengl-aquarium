@@ -302,10 +302,7 @@ Terima kasih kepada seluruh kontributor yang telah berkontribusi pada proyek ini
 | 👤 | **severusDude** | [@severusDude](https://github.com/severusDude) |
 | 👤 | **Rigelyon** | [@Rigelyon](https://github.com/Rigelyon) |
 | 👤 | **rhenaald** | [@rhenaald](https://github.com/rhenaald) |
-| 🤖 | **Copilot** | [@Copilot](https://github.com/Copilot) *(AI Assistant)* |
-| 👤 | **studentsinformati...** | [@studentsinformati...](https://github.com/studentsinformati...) |
-
-> **Catatan:** Username `studentsinformati...` tertampil terpotong pada screenshot. Silakan perbarui dengan username lengkap yang sesuai.
+| 👤 | **studentsinformatics23** | [@studentsinformati...](https://github.com/studentsinformatics23) |
 
 ## 📄 Lisensi
 
